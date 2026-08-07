@@ -1,0 +1,6 @@
+# 所有普通文本默认使用 LF，避免跨平台产生整文件差异
+* text=auto eol=lf
+
+# Windows 批处理脚本使用 CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf

@@ -1,0 +1,23 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: tech-request-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: tech_request
+      MYSQL_USER: tech_request
+      MYSQL_PASSWORD: change-me-local
+      MYSQL_ROOT_PASSWORD: change-root-local
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pchange-root-local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:

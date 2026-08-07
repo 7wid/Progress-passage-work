@@ -1,0 +1,12 @@
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: lax
+
+logging:
+  level:
+    root: INFO
+    cn.edu.techgroup.outsourcing: INFO

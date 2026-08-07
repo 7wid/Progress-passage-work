@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: tech-request-backend
+  jackson:
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true
+  session:
+    store-type: jdbc
+    timeout: 8h
+    jdbc:
+      initialize-schema: never
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 100MB
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  web-origins:
+    - http://localhost:5173
+  upload-dir: ./data/uploads
+  max-file-size-bytes: 20971520
+  max-file-count: 5

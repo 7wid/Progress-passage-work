@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/tech_request?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+    username: tech_request
+    password: change-me-local
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+logging:
+  level:
+    cn.edu.techgroup.outsourcing: DEBUG
