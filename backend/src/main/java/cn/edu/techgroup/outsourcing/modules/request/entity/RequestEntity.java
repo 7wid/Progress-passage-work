@@ -1,6 +1,8 @@
 package cn.edu.techgroup.outsourcing.modules.request.entity;
 
 import cn.edu.techgroup.outsourcing.modules.request.enums.RequestStatus;
+import cn.edu.techgroup.outsourcing.modules.request.enums.RequestUrgency;
+import java.math.BigDecimal;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -21,7 +23,11 @@ public class RequestEntity {
     private String description;
     private String expectedResult;
     private LocalDate expectedDeadline;
-    private String urgency;
+    private RequestUrgency urgency;
+    private BigDecimal budgetAmount;
+    private String budgetDescription;
+    private String technicalConstraints;
+    private String contactInfo;
     private RequestStatus status;
     private Integer progress;
     @Version
@@ -30,36 +36,164 @@ public class RequestEntity {
     private Instant createdAt;
     private Instant updatedAt;
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getRequestNo() { return requestNo; }
-    public void setRequestNo(String requestNo) { this.requestNo = requestNo; }
-    public Long getCreatorId() { return creatorId; }
-    public void setCreatorId(Long creatorId) { this.creatorId = creatorId; }
-    public Long getCategoryId() { return categoryId; }
-    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public String getBackground() { return background; }
-    public void setBackground(String background) { this.background = background; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getExpectedResult() { return expectedResult; }
-    public void setExpectedResult(String expectedResult) { this.expectedResult = expectedResult; }
-    public LocalDate getExpectedDeadline() { return expectedDeadline; }
-    public void setExpectedDeadline(LocalDate expectedDeadline) { this.expectedDeadline = expectedDeadline; }
-    public String getUrgency() { return urgency; }
-    public void setUrgency(String urgency) { this.urgency = urgency; }
-    public RequestStatus getStatus() { return status; }
-    public void setStatus(RequestStatus status) { this.status = status; }
-    public Integer getProgress() { return progress; }
-    public void setProgress(Integer progress) { this.progress = progress; }
-    public Integer getVersion() { return version; }
-    public void setVersion(Integer version) { this.version = version; }
-    public Instant getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getRequestNo() {
+        return requestNo;
+    }
+
+    public void setRequestNo(String requestNo) {
+        this.requestNo = requestNo;
+    }
+
+    public Long getCreatorId() {
+        return creatorId;
+    }
+
+    public void setCreatorId(Long creatorId) {
+        this.creatorId = creatorId;
+    }
+
+    public Long getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getBackground() {
+        return background;
+    }
+
+    public void setBackground(String background) {
+        this.background = background;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getExpectedResult() {
+        return expectedResult;
+    }
+
+    public void setExpectedResult(String expectedResult) {
+        this.expectedResult = expectedResult;
+    }
+
+    public LocalDate getExpectedDeadline() {
+        return expectedDeadline;
+    }
+
+    public void setExpectedDeadline(LocalDate expectedDeadline) {
+        this.expectedDeadline = expectedDeadline;
+    }
+
+    public RequestUrgency getUrgency() {
+        return urgency;
+    }
+
+    public void setUrgency(RequestUrgency urgency) {
+        this.urgency = urgency;
+    }
+
+    public BigDecimal getBudgetAmount() {
+        return budgetAmount;
+    }
+
+    public void setBudgetAmount(BigDecimal budgetAmount) {
+        this.budgetAmount = budgetAmount;
+    }
+
+    public String getBudgetDescription() {
+        return budgetDescription;
+    }
+
+    public void setBudgetDescription(String budgetDescription) {
+        this.budgetDescription = budgetDescription;
+    }
+
+    public String getTechnicalConstraints() {
+        return technicalConstraints;
+    }
+
+    public void setTechnicalConstraints(String technicalConstraints) {
+        this.technicalConstraints = technicalConstraints;
+    }
+
+    public String getContactInfo() {
+        return contactInfo;
+    }
+
+    public void setContactInfo(String contactInfo) {
+        this.contactInfo = contactInfo;
+    }
+
+    public RequestStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(RequestStatus status) {
+        this.status = status;
+    }
+
+    public Integer getProgress() {
+        return progress;
+    }
+
+    public void setProgress(Integer progress) {
+        this.progress = progress;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
+    }
+
+    public Instant getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(Instant submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }
