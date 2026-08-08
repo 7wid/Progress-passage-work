@@ -1,0 +1,46 @@
+package cn.edu.techgroup.outsourcing.config;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.function.Supplier;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.csrf.CsrfTokenRequestHandler;
+import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
+import org.springframework.util.StringUtils;
+
+final class SpaCsrfTokenRequestHandler implements CsrfTokenRequestHandler {
+
+    private final CsrfTokenRequestHandler plainHandler =
+            new CsrfTokenRequestAttributeHandler();
+
+    private final CsrfTokenRequestHandler xorHandler =
+            new XorCsrfTokenRequestAttributeHandler();
+
+    @Override
+    public void handle(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Supplier<CsrfToken> csrfToken) {
+
+        xorHandler.handle(request, response, csrfToken);
+
+        // 强制加载延迟生成的 Token，使服务器写入 XSRF-TOKEN Cookie。
+        csrfToken.get();
+    }
+
+    @Override
+    public String resolveCsrfTokenValue(
+            HttpServletRequest request,
+            CsrfToken csrfToken) {
+
+        String headerValue = request.getHeader(csrfToken.getHeaderName());
+
+        CsrfTokenRequestHandler handler =
+                StringUtils.hasText(headerValue)
+                        ? plainHandler
+                        : xorHandler;
+
+        return handler.resolveCsrfTokenValue(request, csrfToken);
+    }
+}

@@ -1,5 +1,6 @@
 package cn.edu.techgroup.outsourcing.modules.auth.controller;
 
+import jakarta.servlet.http.HttpServletResponse;
 import cn.edu.techgroup.outsourcing.common.api.ApiResponse;
 import cn.edu.techgroup.outsourcing.modules.auth.dto.LoginCommand;
 import cn.edu.techgroup.outsourcing.modules.auth.service.AuthService;
@@ -30,12 +31,15 @@ public class AuthController {
         return ApiResponse.success(token.getToken());
     }
 
-    @PostMapping("/login")
-    public ApiResponse<CurrentUserVO> login(
-            @Valid @RequestBody LoginCommand command,
-            HttpServletRequest request) {
-        return ApiResponse.success(authService.login(command, request));
-    }
+@PostMapping("/login")
+public ApiResponse<CurrentUserVO> login(
+        @Valid @RequestBody LoginCommand command,
+        HttpServletRequest request,
+        HttpServletResponse response) {
+
+    return ApiResponse.success(
+            authService.login(command, request, response));
+}
 
     @GetMapping("/me")
     public ApiResponse<CurrentUserVO> me(@AuthenticationPrincipal LoginUser loginUser) {

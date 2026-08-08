@@ -1,5 +1,6 @@
 package cn.edu.techgroup.outsourcing.common.error;
 
+import org.springframework.security.core.AuthenticationException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +44,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(code.getStatus())
                 .body(ErrorResponse.of(code.name(), code.getMessage()));
     }
+
+
+    @ExceptionHandler(AuthenticationException.class)
+public ResponseEntity<ErrorResponse> handleAuthentication(
+        AuthenticationException exception) {
+
+    ErrorCode code = ErrorCode.INVALID_CREDENTIALS;
+
+    return ResponseEntity.status(code.getStatus())
+            .body(ErrorResponse.of(
+                    code.name(),
+                    code.getMessage()));
+}
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {

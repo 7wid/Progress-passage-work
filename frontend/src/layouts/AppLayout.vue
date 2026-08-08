@@ -1,5 +1,21 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+async function handleLogout() {
+  try {
+    await authStore.signOut()
+    ElMessage.success('已退出登录')
+  } catch {
+    ElMessage.warning('退出请求失败，本地登录状态已清除')
+  } finally {
+    await router.replace('/login')
+  }
+}
 </script>
 
 <template>
@@ -18,7 +34,14 @@ import { RouterLink, RouterView } from 'vue-router'
       </nav>
     </el-aside>
     <el-container>
-      <el-header class="app-shell__header">计算机技术组外包需求管理系统</el-header>
+      <el-header class="app-shell__header">
+        <span>计算机技术组外包需求管理系统</span>
+
+        <div class="app-shell__user">
+          <span>{{ authStore.user?.displayName }}</span>
+          <el-button link type="primary" @click="handleLogout"> 退出登录 </el-button>
+        </div>
+      </el-header>
       <el-main>
         <RouterView />
       </el-main>
@@ -59,7 +82,14 @@ import { RouterLink, RouterView } from 'vue-router'
 .app-shell__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #e5e7eb;
   background: #fff;
+}
+
+.app-shell__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 </style>
