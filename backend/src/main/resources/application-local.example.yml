@@ -8,3 +8,9 @@ spring:
 logging:
   level:
     cn.edu.techgroup.outsourcing: DEBUG
+app:
+  bootstrap-admin:
+    enabled: true
+    account: ${APP_BOOTSTRAP_ADMIN_ACCOUNT:admin}
+    password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+    display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:本地管理员}

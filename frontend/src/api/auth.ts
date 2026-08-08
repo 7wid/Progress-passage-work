@@ -9,6 +9,7 @@ export async function login(input: LoginInput): Promise<CurrentUser> {
 }
 
 export async function logout(): Promise<void> {
+  await http.get<ApiResponse<string>>('/auth/csrf')
   await http.post('/auth/logout')
 }
 

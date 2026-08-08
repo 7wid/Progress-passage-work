@@ -24,8 +24,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signOut() {
-    await authApi.logout()
-    user.value = null
+    try {
+      await authApi.logout()
+    } finally {
+      user.value = null
+      initialized.value = true
+    }
   }
 
   return { user, initialized, isAuthenticated, signIn, signOut, loadCurrentUser }

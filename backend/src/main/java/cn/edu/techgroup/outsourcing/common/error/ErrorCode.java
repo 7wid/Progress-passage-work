@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
     INVALID_ARGUMENT(HttpStatus.BAD_REQUEST, "请求参数不正确"),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED,"账号或密码错误"),
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "请先登录"),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "没有权限执行此操作"),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "目标数据不存在"),

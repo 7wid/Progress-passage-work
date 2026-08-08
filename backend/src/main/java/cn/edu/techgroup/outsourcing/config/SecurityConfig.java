@@ -2,6 +2,9 @@ package cn.edu.techgroup.outsourcing.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
+
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -24,33 +27,63 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        CookieCsrfTokenRepository csrfRepository =
-                CookieCsrfTokenRepository.withHttpOnlyFalse();
-        http.cors(withDefaults())
-                .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository))
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/actuator/health", "/v3/api-docs/**", "/swagger-ui/**")
-                        .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf")
-                        .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login")
-                        .permitAll()
-                        .anyRequest()
-                        .authenticated())
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint((request, response, exception) ->
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
-                        .accessDeniedHandler((request, response, exception) ->
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN)))
-                .logout(logout -> logout
-                        .logoutUrl("/api/v1/auth/logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("SESSION")
-                        .logoutSuccessHandler((request, response, authentication) ->
-                                response.setStatus(HttpServletResponse.SC_NO_CONTENT)));
-        return http.build();
-    }
+public SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        SecurityContextRepository securityContextRepository) throws Exception {
+
+    CookieCsrfTokenRepository csrfRepository =
+            CookieCsrfTokenRepository.withHttpOnlyFalse();
+
+    http.cors(withDefaults())
+            .csrf(csrf -> csrf
+                    .csrfTokenRepository(csrfRepository)
+                    .csrfTokenRequestHandler(
+                            new SpaCsrfTokenRequestHandler()))
+            .securityContext(security -> security
+                    .securityContextRepository(securityContextRepository)
+                    .requireExplicitSave(true))
+            .authorizeHttpRequests(authorize -> authorize
+                    .requestMatchers(
+                            "/actuator/health",
+                            "/v3/api-docs/**",
+                            "/swagger-ui/**")
+                    .permitAll()
+                    .requestMatchers(
+                            HttpMethod.GET,
+                            "/api/v1/auth/csrf")
+                    .permitAll()
+                    .requestMatchers(
+                            HttpMethod.POST,
+                            "/api/v1/auth/login")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+            .exceptionHandling(exceptions -> exceptions
+                    .authenticationEntryPoint(
+                            (request, response, exception) ->
+                                    response.sendError(
+                                            HttpServletResponse.SC_UNAUTHORIZED))
+                    .accessDeniedHandler(
+                            (request, response, exception) ->
+                                    response.sendError(
+                                            HttpServletResponse.SC_FORBIDDEN)))
+            .logout(logout -> logout
+                    .logoutUrl("/api/v1/auth/logout")
+                    .invalidateHttpSession(true)
+                    .deleteCookies("SESSION")
+                    .logoutSuccessHandler(
+                            (request, response, authentication) ->
+                                    response.setStatus(
+                                            HttpServletResponse.SC_NO_CONTENT)));
+
+    return http.build();
+}
+
+
+    @Bean
+    public SecurityContextRepository securityContextRepository() {
+    return new HttpSessionSecurityContextRepository();
+}
 
     @Bean
     public AuthenticationManager authenticationManager(
