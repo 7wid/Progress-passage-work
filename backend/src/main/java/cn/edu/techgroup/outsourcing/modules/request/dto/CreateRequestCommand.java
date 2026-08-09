@@ -4,7 +4,6 @@ import cn.edu.techgroup.outsourcing.modules.request.enums.RequestUrgency;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -13,6 +12,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record CreateRequestCommand(
+
+
+        
+
+        
 
         @NotNull
         @Positive
@@ -35,7 +39,6 @@ public record CreateRequestCommand(
         String expectedResult,
 
         @NotNull
-        @FutureOrPresent
         LocalDate expectedDeadline,
 
         @NotNull
@@ -58,4 +61,26 @@ public record CreateRequestCommand(
         @NotNull
         @AssertTrue(message = "提交前必须确认信息真实有效")
         Boolean informationConfirmed) {
+
+
+                public CreateRequestCommand {
+    title = trim(title);
+    background = trim(background);
+    description = trim(description);
+    expectedResult = trim(expectedResult);
+    budgetDescription = trimToNull(budgetDescription);
+    technicalConstraints = trimToNull(technicalConstraints);
+    contactInfo = trim(contactInfo);
+}
+
+private static String trim(String value) {
+    return value == null ? null : value.trim();
+}
+
+private static String trimToNull(String value) {
+    String trimmed = trim(value);
+    return trimmed == null || trimmed.isEmpty()
+            ? null
+            : trimmed;
+}
 }

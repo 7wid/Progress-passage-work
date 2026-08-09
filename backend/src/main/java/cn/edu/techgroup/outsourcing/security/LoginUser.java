@@ -2,6 +2,8 @@ package cn.edu.techgroup.outsourcing.security;
 
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
 import java.util.Collection;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -14,7 +16,11 @@ public record LoginUser(
         String displayName,
         UserRole role,
         boolean enabled,
-        boolean accountNonLocked) implements UserDetails {
+        boolean accountNonLocked)
+        implements UserDetails, Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
