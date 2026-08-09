@@ -1,15 +1,18 @@
 package cn.edu.techgroup.outsourcing.common.error;
 
-import org.springframework.security.core.AuthenticationException;
 import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -45,23 +48,29 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code.name(), code.getMessage()));
     }
 
-
     @ExceptionHandler(AuthenticationException.class)
-public ResponseEntity<ErrorResponse> handleAuthentication(
-        AuthenticationException exception) {
-
-    ErrorCode code = ErrorCode.INVALID_CREDENTIALS;
-
-    return ResponseEntity.status(code.getStatus())
-            .body(ErrorResponse.of(
-                    code.name(),
-                    code.getMessage()));
-}
+    public ResponseEntity<ErrorResponse> handleAuthentication(
+            AuthenticationException exception) {
+        ErrorCode code = ErrorCode.INVALID_CREDENTIALS;
+        return ResponseEntity.status(code.getStatus())
+                .body(ErrorResponse.of(code.name(), code.getMessage()));
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
         log.error("Unhandled server error", exception);
         ErrorCode code = ErrorCode.INTERNAL_ERROR;
+        return ResponseEntity.status(code.getStatus())
+                .body(ErrorResponse.of(code.name(), code.getMessage()));
+    }
+
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class
+    })
+    public ResponseEntity<ErrorResponse> handleMalformedRequest(
+            Exception exception) {
+        ErrorCode code = ErrorCode.INVALID_ARGUMENT;
         return ResponseEntity.status(code.getStatus())
                 .body(ErrorResponse.of(code.name(), code.getMessage()));
     }

@@ -2,6 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getLoginErrorMessage } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -16,8 +17,8 @@ async function submit() {
     await authStore.signIn(form)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
     await router.replace(redirect)
-  } catch {
-    ElMessage.error('登录失败，请检查账号和密码')
+  } catch (error) {
+    ElMessage.error(getLoginErrorMessage(error))
   } finally {
     loading.value = false
   }
@@ -33,9 +34,19 @@ async function submit() {
           <el-input v-model="form.account" autocomplete="username" />
         </el-form-item>
         <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" autocomplete="current-password" show-password />
+          <el-input
+            v-model="form.password"
+            type="password"
+            autocomplete="current-password"
+            show-password
+          />
         </el-form-item>
-        <el-button type="primary" native-type="submit" :loading="loading" class="login-card__submit">
+        <el-button
+          type="primary"
+          native-type="submit"
+          :loading="loading"
+          class="login-card__submit"
+        >
           登录
         </el-button>
       </el-form>
