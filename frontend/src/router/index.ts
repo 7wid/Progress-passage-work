@@ -22,13 +22,30 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', component: DashboardView },
-        { path: 'requests', component: RequestListView },
-        { path: 'requests/new', component: RequestCreateView },
-        { path: 'requests/:id', component: RequestDetailView },
-        { path: 'workspace', component: WorkspaceView },
-        { path: 'admin/members', component: MemberManagementView },
-        { path: 'admin/categories', component: CategoryManagementView },
-        { path: 'admin/statistics', component: StatisticsView },
+        { path: 'requests', name: 'request-list', component: RequestListView },
+        {
+          path: 'requests/new',
+          name: 'request-create',
+          component: RequestCreateView,
+          meta: { roles: ['REQUESTER', 'ADMIN'] },
+        },
+        { path: 'requests/:id', name: 'request-detail', component: RequestDetailView },
+        { path: 'workspace', component: WorkspaceView, meta: { roles: ['MEMBER', 'ADMIN'] } },
+        {
+          path: 'admin/members',
+          component: MemberManagementView,
+          meta: { roles: ['ADMIN'] },
+        },
+        {
+          path: 'admin/categories',
+          component: CategoryManagementView,
+          meta: { roles: ['ADMIN'] },
+        },
+        {
+          path: 'admin/statistics',
+          component: StatisticsView,
+          meta: { roles: ['ADMIN'] },
+        },
         { path: 'settings', component: SettingsView },
       ],
     },
@@ -45,6 +62,11 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
   if (to.path === '/login' && authStore.isAuthenticated) {
+    return '/dashboard'
+  }
+
+  const roles = to.meta.roles
+  if (roles && authStore.user && !roles.includes(authStore.user.role)) {
     return '/dashboard'
   }
 })

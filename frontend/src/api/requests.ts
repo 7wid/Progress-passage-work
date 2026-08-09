@@ -1,6 +1,12 @@
+import type {
+  CreatedRequest,
+  CreateRequestInput,
+  RequestDetail,
+  RequestListQuery,
+  RequestSummary,
+} from '@/types/request'
 import { http } from './http'
 import type { ApiResponse, PageResponse } from '@/types/api'
-import type { CreatedRequest, CreateRequestInput, RequestSummary } from '@/types/request'
 
 export async function createRequest(input: CreateRequestInput): Promise<CreatedRequest> {
   await http.get<ApiResponse<string>>('/auth/csrf')
@@ -17,11 +23,22 @@ export async function createRequest(input: CreateRequestInput): Promise<CreatedR
 
   return response.data.data
 }
-
-export async function getRequests(page = 1, pageSize = 20): Promise<PageResponse<RequestSummary>> {
+export async function getRequests(query: RequestListQuery): Promise<PageResponse<RequestSummary>> {
   const response = await http.get<ApiResponse<PageResponse<RequestSummary>>>('/requests', {
-    params: { page, pageSize },
+    params: {
+      ...query,
+      keyword: query.keyword?.trim() || undefined,
+      categoryId: query.categoryId || undefined,
+      submittedFrom: query.submittedFrom || undefined,
+      submittedTo: query.submittedTo || undefined,
+    },
   })
+
+  return response.data.data
+}
+
+export async function getRequestDetail(id: string): Promise<RequestDetail> {
+  const response = await http.get<ApiResponse<RequestDetail>>(`/requests/${encodeURIComponent(id)}`)
 
   return response.data.data
 }
