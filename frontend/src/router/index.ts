@@ -30,7 +30,12 @@ const router = createRouter({
           meta: { roles: ['REQUESTER', 'ADMIN'] },
         },
         { path: 'requests/:id', name: 'request-detail', component: RequestDetailView },
-        { path: 'workspace', component: WorkspaceView, meta: { roles: ['MEMBER', 'ADMIN'] } },
+        {
+          path: 'workspace',
+          name: 'workspace',
+          component: WorkspaceView,
+          meta: { roles: ['MEMBER', 'ADMIN'] },
+        },
         {
           path: 'admin/members',
           component: MemberManagementView,

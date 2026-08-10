@@ -1,10 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+const isRequester = computed(() => authStore.user?.role === 'REQUESTER')
+
+const isMember = computed(() => authStore.user?.role === 'MEMBER')
+
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+
+const isTeam = computed(() => isMember.value || isAdmin.value)
+
+const canCreateRequest = computed(() => isRequester.value || isAdmin.value)
 
 async function handleLogout() {
   try {
@@ -23,14 +34,23 @@ async function handleLogout() {
     <el-aside width="220px" class="app-shell__aside">
       <h1>技术需求管理</h1>
       <nav>
-        <RouterLink to="/dashboard">首页</RouterLink>
-        <RouterLink to="/requests">我的需求</RouterLink>
-        <RouterLink to="/requests/new">提交需求</RouterLink>
-        <RouterLink to="/workspace">技术组工作台</RouterLink>
-        <RouterLink to="/admin/members">成员管理</RouterLink>
-        <RouterLink to="/admin/categories">分类管理</RouterLink>
-        <RouterLink to="/admin/statistics">数据概览</RouterLink>
-        <RouterLink to="/settings">个人设置</RouterLink>
+        <RouterLink to="/dashboard"> 首页 </RouterLink>
+
+        <RouterLink to="/requests">
+          {{ isRequester ? '我的需求' : '需求池' }}
+        </RouterLink>
+
+        <RouterLink v-if="canCreateRequest" to="/requests/new"> 提交需求 </RouterLink>
+
+        <RouterLink v-if="isTeam" to="/workspace"> 技术组工作台 </RouterLink>
+
+        <RouterLink v-if="isAdmin" to="/admin/members"> 成员管理 </RouterLink>
+
+        <RouterLink v-if="isAdmin" to="/admin/categories"> 分类管理 </RouterLink>
+
+        <RouterLink v-if="isAdmin" to="/admin/statistics"> 数据概览 </RouterLink>
+
+        <RouterLink to="/settings"> 个人设置 </RouterLink>
       </nav>
     </el-aside>
     <el-container>
