@@ -117,6 +117,7 @@ class RequestServiceImplTest {
         request.setContactInfo("requester@example.edu.cn");
         request.setStatus(RequestStatus.PENDING_REVIEW);
         request.setProgress(0);
+        request.setVersion(0);
         request.setSubmittedAt(Instant.parse("2026-08-09T08:00:00Z"));
         request.setCreatedAt(Instant.parse("2026-08-09T08:00:00Z"));
         request.setUpdatedAt(Instant.parse("2026-08-09T08:00:00Z"));
