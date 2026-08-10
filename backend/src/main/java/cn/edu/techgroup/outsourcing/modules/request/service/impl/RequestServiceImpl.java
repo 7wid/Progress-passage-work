@@ -408,6 +408,7 @@ public class RequestServiceImpl implements RequestService {
                 canViewContact ? entity.getContactInfo() : null,
                 entity.getStatus(),
                 entity.getProgress(),
+                entity.getVersion(),
                 entity.getSubmittedAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),

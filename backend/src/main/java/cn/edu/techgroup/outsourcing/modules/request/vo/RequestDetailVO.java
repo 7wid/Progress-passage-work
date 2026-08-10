@@ -26,6 +26,7 @@ public record RequestDetailVO(
         String contactInfo,
         RequestStatus status,
         int progress,
+        int version,
         Instant submittedAt,
         Instant createdAt,
         Instant updatedAt,

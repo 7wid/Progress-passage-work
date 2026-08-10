@@ -35,6 +35,38 @@ export function getLoginErrorMessage(error: unknown): string {
   }
 }
 
+export function getApiStatus(error: unknown): number | undefined {
+  return axios.isAxiosError<ApiErrorPayload>(error) ? error.response?.status : undefined
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError<ApiErrorPayload>(error)) {
+    return fallback
+  }
+
+  if (!error.response) {
+    return '无法连接后端服务，请确认后端已经启动'
+  }
+
+  return error.response.data?.error?.message ?? fallback
+}
+
+export function getApiFieldErrors(error: unknown): Record<string, string> {
+  if (!axios.isAxiosError<ApiErrorPayload>(error)) {
+    return {}
+  }
+
+  const result: Record<string, string> = {}
+
+  for (const detail of error.response?.data?.error?.details ?? []) {
+    if (detail.field && result[detail.field] === undefined) {
+      result[detail.field] = detail.message
+    }
+  }
+
+  return result
+}
+
 http.interceptors.response.use(
   (response) => response,
   (error) => {
