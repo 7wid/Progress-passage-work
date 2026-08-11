@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.category.entity.CategoryEntity;
 import cn.edu.techgroup.outsourcing.modules.category.mapper.CategoryMapper;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
@@ -44,6 +45,8 @@ class RequestServiceImplTest {
     @Mock
     private StatusHistoryMapper statusHistoryMapper;
     @Mock
+    private RequestMemberMapper requestMemberMapper;
+    @Mock
     private RequestNumberGenerator requestNumberGenerator;
     @Mock
     private UserMapper userMapper;
@@ -57,6 +60,7 @@ class RequestServiceImplTest {
                 categoryMapper,
                 statusHistoryMapper,
                 requestNumberGenerator,
+                requestMemberMapper,
                 userMapper);
     }
 
@@ -77,7 +81,12 @@ class RequestServiceImplTest {
                 () -> requestService.list(query, loginUser(2L, UserRole.MEMBER)));
 
         assertSame(ErrorCode.INVALID_ARGUMENT, exception.getErrorCode());
-        verifyNoInteractions(requestMapper, categoryMapper, statusHistoryMapper, userMapper);
+        verifyNoInteractions(
+                requestMapper,
+                categoryMapper,
+                statusHistoryMapper,
+                requestMemberMapper,
+                userMapper);
     }
 
     @Test
@@ -100,6 +109,19 @@ class RequestServiceImplTest {
                 loginUser(2L, UserRole.MEMBER));
 
         assertNull(detail.contactInfo());
+    }
+
+    @Test
+    void assignedMemberCanViewContactInformation() {
+        stubDetailDependencies();
+        when(requestMemberMapper.countByRequestIdAndUserId(100L, 2L))
+                .thenReturn(1L);
+
+        RequestDetailVO detail = requestService.getDetail(
+                100L,
+                loginUser(2L, UserRole.MEMBER));
+
+        assertEquals("requester@example.edu.cn", detail.contactInfo());
     }
 
     private void stubDetailDependencies() {

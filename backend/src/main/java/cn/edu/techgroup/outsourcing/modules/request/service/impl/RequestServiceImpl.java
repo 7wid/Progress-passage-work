@@ -3,6 +3,7 @@ package cn.edu.techgroup.outsourcing.modules.request.service.impl;
 import cn.edu.techgroup.outsourcing.common.api.PageResponse;
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.category.entity.CategoryEntity;
 import cn.edu.techgroup.outsourcing.modules.category.mapper.CategoryMapper;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
@@ -50,6 +51,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestMapper requestMapper;
     private final CategoryMapper categoryMapper;
     private final StatusHistoryMapper statusHistoryMapper;
+    private final RequestMemberMapper requestMemberMapper;
     private final RequestNumberGenerator requestNumberGenerator;
 
     public RequestServiceImpl(
@@ -57,12 +59,14 @@ public class RequestServiceImpl implements RequestService {
             CategoryMapper categoryMapper,
             StatusHistoryMapper statusHistoryMapper,
             RequestNumberGenerator requestNumberGenerator,
+            RequestMemberMapper requestMemberMapper,
             UserMapper userMapper) {
         this.requestMapper = requestMapper;
         this.categoryMapper = categoryMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.requestNumberGenerator = requestNumberGenerator;
         this.userMapper = userMapper;
+        this.requestMemberMapper = requestMemberMapper;
     }
 
     @Override
@@ -386,8 +390,17 @@ public class RequestServiceImpl implements RequestService {
                         history.getCreatedAt()))
                 .toList();
 
-        boolean canViewContact = viewer.role() == UserRole.ADMIN
-                || entity.getCreatorId().equals(viewer.id());
+        boolean assignedMember =
+                viewer.role() == UserRole.MEMBER
+                        && requestMemberMapper
+                                .countByRequestIdAndUserId(
+                                        entity.getId(),
+                                        viewer.id()) > 0;
+
+        boolean canViewContact =
+                viewer.role() == UserRole.ADMIN
+                        || entity.getCreatorId().equals(viewer.id())
+                        || assignedMember;
 
         return new RequestDetailVO(
                 entity.getId().toString(),

@@ -89,17 +89,8 @@ describe('evaluations api', () => {
       internalNote: null,
     })
 
-const csrfCallOrder = getMock.mock.invocationCallOrder[0]
-const postCallOrder = postMock.mock.invocationCallOrder[0]
-
-expect(csrfCallOrder).toBeDefined()
-expect(postCallOrder).toBeDefined()
-
-if (csrfCallOrder === undefined || postCallOrder === undefined) {
-  throw new Error('测试没有捕获到预期的 HTTP 调用')
-}
-
-expect(csrfCallOrder).toBeLessThan(postCallOrder)
+    const csrfCallOrder = getMock.mock.invocationCallOrder[0]
+    const postCallOrder = postMock.mock.invocationCallOrder[0]
 
     expect(csrfCallOrder).toBeDefined()
     expect(postCallOrder).toBeDefined()

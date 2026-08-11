@@ -4,10 +4,20 @@ import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface RequestMapper extends BaseMapper<RequestEntity> {
+
+    @Select("""
+            SELECT *
+            FROM tech_request
+            WHERE id = #{requestId}
+            FOR UPDATE
+            """)
+    RequestEntity selectByIdForUpdate(
+            @Param("requestId") Long requestId);
 
     @Update("""
             UPDATE tech_request
