@@ -11,6 +11,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
+
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
 import cn.edu.techgroup.outsourcing.modules.evaluation.dto.ConfirmRejectionCommand;
@@ -43,7 +48,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class EvaluationServiceImplTest {
 
     private static final Long REQUEST_ID = 100L;
-
+    @BeforeAll
+static void initializeMybatisMetadata() {
+    TableInfoHelper.initTableInfo(
+            new MapperBuilderAssistant(
+                    new MybatisConfiguration(),
+                    ""),
+            UserEntity.class);
+}
     @Mock
     private EvaluationMapper evaluationMapper;
 
@@ -57,6 +69,10 @@ class EvaluationServiceImplTest {
     private UserMapper userMapper;
 
     private EvaluationServiceImpl evaluationService;
+
+
+
+
 
     @BeforeEach
     void setUp() {
