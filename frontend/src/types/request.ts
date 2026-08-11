@@ -75,19 +75,6 @@ export interface RequestStatusHistory {
 }
 
 export interface RequestDetail extends RequestSummary {
-  creatorId: string
-  background: string
-  description: string
-  expectedResult: string
-  budgetAmount: number | null
-  budgetDescription: string | null
-  technicalConstraints: string | null
-  contactInfo: string | null
-  updatedAt: string
-  statusHistory: RequestStatusHistory[]
-}
-
-export interface RequestDetail extends RequestSummary {
   version: number
   creatorId: string
   background: string

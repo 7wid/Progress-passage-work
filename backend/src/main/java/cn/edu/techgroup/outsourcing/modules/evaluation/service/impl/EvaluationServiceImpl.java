@@ -179,6 +179,13 @@ public class EvaluationServiceImpl implements EvaluationService {
 
         requireAdmin(operator);
 
+        if (command == null
+        || command.requestVersion() == null) {
+    throw new BusinessException(
+            ErrorCode.INVALID_ARGUMENT,
+            "请求版本不能为空");
+}
+
         RequestEntity request = findRequest(requestId);
         validatePendingReviewAndVersion(
                 request,

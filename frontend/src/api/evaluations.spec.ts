@@ -89,7 +89,18 @@ describe('evaluations api', () => {
       internalNote: null,
     })
 
-    expect(getMock.mock.invocationCallOrder[0]).toBeLessThan(postMock.mock.invocationCallOrder[0])
+    const csrfCallOrder = getMock.mock.invocationCallOrder.at(0)
+
+    const postCallOrder = postMock.mock.invocationCallOrder.at(0)
+
+    expect(csrfCallOrder).toBeDefined()
+    expect(postCallOrder).toBeDefined()
+
+    if (csrfCallOrder === undefined || postCallOrder === undefined) {
+      throw new Error('测试没有捕获到预期的 HTTP 调用')
+    }
+
+    expect(csrfCallOrder).toBeLessThan(postCallOrder)
   })
 
   it('管理员确认前先获取 CSRF', async () => {
