@@ -2,8 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getRequestAssignment } from '@/api/assignments'
+import { getRequestProgress } from '@/api/progress'
 import AssignmentPanel from '@/components/assignment/AssignmentPanel.vue'
+import ProgressPanel from '@/components/progress/ProgressPanel.vue'
+import RequestTimeline from '@/components/progress/RequestTimeline.vue'
 import type { RequestAssignment } from '@/types/assignment'
+import type { RequestProgressSnapshot } from '@/types/progress'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmEvaluationRejection, getEvaluations } from '@/api/evaluations'
 import { getApiErrorMessage, getApiStatus } from '@/api/http'
@@ -23,6 +27,7 @@ const loading = ref(false)
 const detail = ref<RequestDetail | null>(null)
 const evaluations = ref<EvaluationRecord[]>([])
 const assignment = ref<RequestAssignment | null>(null)
+const progressSnapshot = ref<RequestProgressSnapshot | null>(null)
 const errorMessage = ref('')
 const confirmingEvaluationId = ref<string | null>(null)
 
@@ -82,7 +87,7 @@ const confirmableEvaluationId = computed(() =>
   isAdmin.value && pendingRejection.value ? (latestEvaluation.value?.id ?? null) : null,
 )
 
-async function loadPage() {
+async function loadPage(retryCount = 0) {
   const id = String(route.params.id ?? '')
   const sequence = ++loadSequence
 
@@ -95,6 +100,7 @@ async function loadPage() {
   detail.value = null
   evaluations.value = []
   assignment.value = null
+  progressSnapshot.value = null
   errorMessage.value = ''
 
   if (!/^[1-9]\d*$/.test(id)) {
@@ -111,11 +117,29 @@ async function loadPage() {
      * assignment 中的 requestVersion 必须以服务端返回结果为准，
      * 前端不能自行推算。
      */
-    const [requestDetail, evaluationHistory, requestAssignment] = await Promise.all([
-      getRequestDetail(id),
-      getEvaluations(id),
-      getRequestAssignment(id),
-    ])
+    const [requestDetail, evaluationHistory, requestAssignment, requestProgress] =
+      await Promise.all([
+        getRequestDetail(id),
+        getEvaluations(id),
+        getRequestAssignment(id),
+        getRequestProgress(id),
+      ])
+
+    const versions = [
+      requestDetail.version,
+      requestAssignment.requestVersion,
+      requestProgress.requestVersion,
+    ]
+    if (new Set(versions).size > 1) {
+      if (retryCount < 1) {
+        await loadPage(retryCount + 1)
+        return
+      }
+      if (sequence === loadSequence) {
+        errorMessage.value = '需求刚刚发生变化，请点击重新加载获取一致数据'
+      }
+      return
+    }
 
     /*
      * 如果在请求过程中已经触发了下一次 loadPage，
@@ -126,6 +150,7 @@ async function loadPage() {
     detail.value = requestDetail
     evaluations.value = evaluationHistory
     assignment.value = requestAssignment
+    progressSnapshot.value = requestProgress
   } catch (error) {
     if (sequence === loadSequence) {
       errorMessage.value = getApiErrorMessage(error, '需求不存在、已被删除，或当前账号没有查看权限')
@@ -190,6 +215,15 @@ async function handleAssignmentUpdated() {
  */
 async function handleAssignmentConflict() {
   ElMessage.warning('任务成员已被其他管理员更新，正在重新加载')
+  await loadPage()
+}
+
+async function handleProgressUpdated(): Promise<void> {
+  ElMessage.success('进度记录已发布')
+  await loadPage()
+}
+
+async function handleProgressConflict(): Promise<void> {
   await loadPage()
 }
 
@@ -444,30 +478,18 @@ watch(
         @conflict="handleAssignmentConflict"
       />
 
-      <!-- ===================================================== -->
-      <!-- 状态历史 -->
-      <!-- ===================================================== -->
+      <ProgressPanel
+        v-if="progressSnapshot"
+        :key="progressSnapshot.requestVersion"
+        :snapshot="progressSnapshot"
+        @updated="handleProgressUpdated"
+        @conflict="handleProgressConflict"
+      />
 
-      <el-card header="状态历史">
-        <el-empty v-if="detail.statusHistory.length === 0" description="暂无状态记录" />
-
-        <el-timeline v-else>
-          <el-timeline-item
-            v-for="history in detail.statusHistory"
-            :key="history.id"
-            :timestamp="formatDateTime(history.createdAt)"
-          >
-            <div class="history-title">
-              <RequestStatusTag :status="history.toStatus" />
-              <span>{{ history.operatorName }}</span>
-            </div>
-
-            <p>
-              {{ history.reason ?? '无补充说明' }}
-            </p>
-          </el-timeline-item>
-        </el-timeline>
-      </el-card>
+      <RequestTimeline
+        :status-history="detail.statusHistory"
+        :progress-logs="progressSnapshot?.logs ?? []"
+      />
     </template>
   </section>
 </template>
@@ -477,8 +499,7 @@ watch(
   color: #6b7280;
 }
 
-.header-actions,
-.history-title {
+.header-actions {
   display: flex;
   align-items: center;
   gap: 12px;

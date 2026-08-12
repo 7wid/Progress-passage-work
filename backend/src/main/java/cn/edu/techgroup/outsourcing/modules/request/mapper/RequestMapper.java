@@ -32,4 +32,18 @@ public interface RequestMapper extends BaseMapper<RequestEntity> {
             @Param("fromStatus") String fromStatus,
             @Param("toStatus") String toStatus,
             @Param("expectedVersion") Integer expectedVersion);
+
+    @Update("""
+            UPDATE tech_request
+            SET progress = #{progress},
+                version = version + 1
+            WHERE id = #{requestId}
+              AND status = #{expectedStatus}
+              AND version = #{expectedVersion}
+            """)
+    int compareAndSetProgress(
+            @Param("requestId") Long requestId,
+            @Param("expectedStatus") String expectedStatus,
+            @Param("expectedVersion") Integer expectedVersion,
+            @Param("progress") Integer progress);
 }
