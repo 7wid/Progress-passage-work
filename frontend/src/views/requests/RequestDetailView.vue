@@ -3,11 +3,14 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getRequestAssignment } from '@/api/assignments'
 import { getRequestProgress } from '@/api/progress'
+import { getDeliveryAcceptance } from '@/api/deliveries'
 import AssignmentPanel from '@/components/assignment/AssignmentPanel.vue'
+import DeliveryAcceptancePanel from '@/components/delivery/DeliveryAcceptancePanel.vue'
 import ProgressPanel from '@/components/progress/ProgressPanel.vue'
 import RequestTimeline from '@/components/progress/RequestTimeline.vue'
 import type { RequestAssignment } from '@/types/assignment'
 import type { RequestProgressSnapshot } from '@/types/progress'
+import type { DeliveryAcceptanceSnapshot } from '@/types/delivery'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmEvaluationRejection, getEvaluations } from '@/api/evaluations'
 import { getApiErrorMessage, getApiStatus } from '@/api/http'
@@ -28,6 +31,7 @@ const detail = ref<RequestDetail | null>(null)
 const evaluations = ref<EvaluationRecord[]>([])
 const assignment = ref<RequestAssignment | null>(null)
 const progressSnapshot = ref<RequestProgressSnapshot | null>(null)
+const deliveryAcceptanceSnapshot = ref<DeliveryAcceptanceSnapshot | null>(null)
 const errorMessage = ref('')
 const confirmingEvaluationId = ref<string | null>(null)
 
@@ -101,6 +105,7 @@ async function loadPage(retryCount = 0) {
   evaluations.value = []
   assignment.value = null
   progressSnapshot.value = null
+  deliveryAcceptanceSnapshot.value = null
   errorMessage.value = ''
 
   if (!/^[1-9]\d*$/.test(id)) {
@@ -117,18 +122,25 @@ async function loadPage(retryCount = 0) {
      * assignment 中的 requestVersion 必须以服务端返回结果为准，
      * 前端不能自行推算。
      */
-    const [requestDetail, evaluationHistory, requestAssignment, requestProgress] =
-      await Promise.all([
-        getRequestDetail(id),
-        getEvaluations(id),
-        getRequestAssignment(id),
-        getRequestProgress(id),
-      ])
+    const [
+      requestDetail,
+      evaluationHistory,
+      requestAssignment,
+      requestProgress,
+      deliveryAcceptance,
+    ] = await Promise.all([
+      getRequestDetail(id),
+      getEvaluations(id),
+      getRequestAssignment(id),
+      getRequestProgress(id),
+      getDeliveryAcceptance(id),
+    ])
 
     const versions = [
       requestDetail.version,
       requestAssignment.requestVersion,
       requestProgress.requestVersion,
+      deliveryAcceptance.requestVersion,
     ]
     if (new Set(versions).size > 1) {
       if (retryCount < 1) {
@@ -151,6 +163,7 @@ async function loadPage(retryCount = 0) {
     evaluations.value = evaluationHistory
     assignment.value = requestAssignment
     progressSnapshot.value = requestProgress
+    deliveryAcceptanceSnapshot.value = deliveryAcceptance
   } catch (error) {
     if (sequence === loadSequence) {
       errorMessage.value = getApiErrorMessage(error, '需求不存在、已被删除，或当前账号没有查看权限')
@@ -224,6 +237,15 @@ async function handleProgressUpdated(): Promise<void> {
 }
 
 async function handleProgressConflict(): Promise<void> {
+  await loadPage()
+}
+
+async function handleDeliveryAcceptanceUpdated(): Promise<void> {
+  ElMessage.success('交付或验收操作已完成')
+  await loadPage()
+}
+
+async function handleDeliveryAcceptanceConflict(): Promise<void> {
   await loadPage()
 }
 
@@ -486,9 +508,19 @@ watch(
         @conflict="handleProgressConflict"
       />
 
+      <DeliveryAcceptancePanel
+        v-if="deliveryAcceptanceSnapshot"
+        :key="deliveryAcceptanceSnapshot.requestVersion"
+        :snapshot="deliveryAcceptanceSnapshot"
+        @updated="handleDeliveryAcceptanceUpdated"
+        @conflict="handleDeliveryAcceptanceConflict"
+      />
+
       <RequestTimeline
         :status-history="detail.statusHistory"
         :progress-logs="progressSnapshot?.logs ?? []"
+        :deliveries="deliveryAcceptanceSnapshot?.deliveries ?? []"
+        :acceptances="deliveryAcceptanceSnapshot?.acceptances ?? []"
       />
     </template>
   </section>
