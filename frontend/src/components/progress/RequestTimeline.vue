@@ -3,10 +3,13 @@ import { computed } from 'vue'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
 import type { ProgressLog } from '@/types/progress'
 import type { RequestStatusHistory } from '@/types/request'
+import type { AcceptanceRecord, DeliveryRecord } from '@/types/delivery'
 
 const props = defineProps<{
   statusHistory: RequestStatusHistory[]
   progressLogs: ProgressLog[]
+  deliveries: DeliveryRecord[]
+  acceptances: AcceptanceRecord[]
 }>()
 
 type TimelineEvent =
@@ -22,6 +25,18 @@ type TimelineEvent =
       createdAt: string
       log: ProgressLog
     }
+  | {
+      key: string
+      kind: 'DELIVERY'
+      createdAt: string
+      delivery: DeliveryRecord
+    }
+  | {
+      key: string
+      kind: 'ACCEPTANCE'
+      createdAt: string
+      acceptance: AcceptanceRecord
+    }
 
 const events = computed<TimelineEvent[]>(() => {
   const statusEvents: TimelineEvent[] = props.statusHistory.map((history) => ({
@@ -36,11 +51,26 @@ const events = computed<TimelineEvent[]>(() => {
     createdAt: log.createdAt,
     log,
   }))
+  const deliveryEvents: TimelineEvent[] = props.deliveries.map((delivery) => ({
+    key: `delivery-${delivery.id}`,
+    kind: 'DELIVERY',
+    createdAt: delivery.createdAt,
+    delivery,
+  }))
+  const acceptanceEvents: TimelineEvent[] = props.acceptances.map((acceptance) => ({
+    key: `acceptance-${acceptance.id}`,
+    kind: 'ACCEPTANCE',
+    createdAt: acceptance.createdAt,
+    acceptance,
+  }))
 
-  return [...statusEvents, ...progressEvents].sort((left, right) => {
-    const timeDifference = new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
-    return timeDifference === 0 ? right.key.localeCompare(left.key) : timeDifference
-  })
+  return [...statusEvents, ...progressEvents, ...deliveryEvents, ...acceptanceEvents].sort(
+    (left, right) => {
+      const timeDifference =
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      return timeDifference === 0 ? right.key.localeCompare(left.key) : timeDifference
+    },
+  )
 })
 
 const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
@@ -51,6 +81,16 @@ const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
 function formatDateTime(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '—' : dateTimeFormatter.format(date)
+}
+
+function safeHttpUrl(value: string | null): string | null {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? value : null
+  } catch {
+    return null
+  }
 }
 </script>
 
@@ -72,7 +112,7 @@ function formatDateTime(value: string): string {
           <p>{{ event.history.reason ?? '无补充说明' }}</p>
         </article>
 
-        <article v-else class="timeline-event">
+        <article v-else-if="event.kind === 'PROGRESS'" class="timeline-event">
           <div class="event-header">
             <el-tag type="primary">进度 {{ event.log.progress }}%</el-tag>
             <strong>{{ event.log.authorName }}</strong>
@@ -86,6 +126,31 @@ function formatDateTime(value: string): string {
           <p v-if="event.log.nextUpdateAt">
             <strong>预计下次更新：</strong>{{ formatDateTime(event.log.nextUpdateAt) }}
           </p>
+        </article>
+
+        <article v-else-if="event.kind === 'DELIVERY'" class="timeline-event">
+          <div class="event-header">
+            <el-tag type="success">提交交付</el-tag>
+            <strong>{{ event.delivery.submitterName }}</strong>
+          </div>
+          <p>{{ event.delivery.description }}</p>
+          <a
+            v-if="safeHttpUrl(event.delivery.deliveryUrl)"
+            :href="safeHttpUrl(event.delivery.deliveryUrl) ?? undefined"
+            target="_blank"
+            rel="noopener noreferrer"
+            >打开交付地址</a
+          >
+        </article>
+
+        <article v-else class="timeline-event">
+          <div class="event-header">
+            <el-tag :type="event.acceptance.result === 'ACCEPTED' ? 'success' : 'warning'">
+              {{ event.acceptance.result === 'ACCEPTED' ? '验收通过' : '退回修改' }}
+            </el-tag>
+            <strong>{{ event.acceptance.operatorName }}</strong>
+          </div>
+          <p>{{ event.acceptance.comment ?? '无补充评价' }}</p>
         </article>
       </el-timeline-item>
     </el-timeline>
