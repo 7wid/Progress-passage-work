@@ -9,6 +9,7 @@ import type {
   CreatedDeliveryResult,
   DeliveryAcceptanceSnapshot,
 } from '@/types/delivery'
+import type { AttachmentRecord } from '@/types/attachment'
 
 vi.mock('@/api/deliveries', () => ({
   createDelivery: vi.fn(),
@@ -44,6 +45,8 @@ const stubs = {
   'el-form-item': { template: '<div><slot /></div>' },
   'el-input': true,
   'el-alert': true,
+  'el-collapse': { template: '<div><slot /></div>' },
+  'el-collapse-item': { template: '<div><slot /></div>' },
   'el-radio-group': { template: '<div><slot /></div>' },
   'el-radio': { template: '<span><slot /></span>' },
   'el-button': { template: '<button><slot /></button>' },
@@ -80,6 +83,7 @@ describe('DeliveryAcceptancePanel', () => {
               submitterName: '负责人',
               description: '已经部署并提交使用说明',
               deliveryUrl: 'https://example.com/delivery',
+              attachments: [],
               createdAt: '2026-08-12T08:00:00Z',
             },
           ],
@@ -111,6 +115,39 @@ describe('DeliveryAcceptancePanel', () => {
     expect(wrapper.emitted('updated')).toEqual([[result]])
   })
 
+  it('刷新后恢复待绑定附件并提交其编号', async () => {
+    const result = { requestVersion: 8 } as CreatedDeliveryResult
+    createDeliveryMock.mockResolvedValue(result)
+    const pendingAttachment = {
+      id: '31',
+      requestId: '100',
+      businessType: 'DELIVERY',
+      businessId: null,
+      originalName: 'delivery.pdf',
+      contentType: 'application/pdf',
+      sizeBytes: 1024,
+      uploaderId: '2',
+      uploaderName: '负责人',
+      canDelete: true,
+      createdAt: '2026-08-13T08:00:00Z',
+    } satisfies AttachmentRecord
+    const wrapper = shallowMount(DeliveryAcceptancePanel, {
+      props: {
+        snapshot: snapshot({ canSubmitDelivery: true }),
+        pendingAttachments: [pendingAttachment],
+      },
+      global: { stubs },
+    })
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createDeliveryMock).toHaveBeenCalledWith(
+      '100',
+      expect.objectContaining({ attachmentIds: ['31'] }),
+    )
+  })
+
   it('需求方可以验收最新交付', async () => {
     const result = { requestVersion: 9 } as CreatedAcceptanceResult
     createAcceptanceMock.mockResolvedValue(result)
@@ -127,6 +164,7 @@ describe('DeliveryAcceptancePanel', () => {
               submitterName: '负责人',
               description: '已经部署并提交使用说明',
               deliveryUrl: null,
+              attachments: [],
               createdAt: '2026-08-12T08:00:00Z',
             },
           ],

@@ -23,6 +23,24 @@ function trimToNull(value: string | null): string | null {
   return trimmed.length === 0 ? null : trimmed
 }
 
+function normalizeAttachmentIds(values: string[]): number[] {
+  const seen = new Set<number>()
+  return values.map((value) => {
+    if (!/^[1-9]\d*$/.test(value)) {
+      throw new Error('附件编号格式不正确')
+    }
+    const parsed = Number(value)
+    if (!Number.isSafeInteger(parsed)) {
+      throw new Error('附件编号格式不正确')
+    }
+    if (seen.has(parsed)) {
+      throw new Error('交付附件不能重复')
+    }
+    seen.add(parsed)
+    return parsed
+  })
+}
+
 function normalizeDeliveryUrl(value: string | null): string | null {
   const trimmed = trimToNull(value)
   if (trimmed === null) return null
@@ -62,6 +80,7 @@ export async function createDelivery(
     requestVersion: input.requestVersion,
     description: input.description.trim(),
     deliveryUrl: normalizeDeliveryUrl(input.deliveryUrl),
+    attachmentIds: normalizeAttachmentIds(input.attachmentIds),
   }
 
   await http.get<ApiResponse<string>>('/auth/csrf')

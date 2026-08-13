@@ -5,11 +5,13 @@ import org.apache.ibatis.annotations.Mapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @MapperScan(
         basePackages = "cn.edu.techgroup.outsourcing.modules",
         annotationClass = Mapper.class)
 @ConfigurationPropertiesScan
+@EnableScheduling
 @SpringBootApplication
 public class TechRequestApplication {
 
