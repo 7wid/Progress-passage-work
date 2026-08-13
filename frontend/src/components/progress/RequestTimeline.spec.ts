@@ -39,6 +39,7 @@ describe('RequestTimeline', () => {
         submitterName: '负责人',
         description: '发布测试环境和使用文档',
         deliveryUrl: 'https://example.com/delivery',
+        attachments: [],
         createdAt: '2026-08-12T08:00:00Z',
       },
     ]

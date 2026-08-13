@@ -1,4 +1,5 @@
 import type { RequestStatus } from '@/types/request'
+import type { AttachmentRecord } from '@/types/attachment'
 
 export type AcceptanceResult = 'ACCEPTED' | 'REWORK_REQUIRED'
 
@@ -9,6 +10,7 @@ export interface DeliveryRecord {
   submitterName: string
   description: string
   deliveryUrl: string | null
+  attachments: AttachmentRecord[]
   createdAt: string
 }
 
@@ -37,6 +39,7 @@ export interface CreateDeliveryInput {
   requestVersion: number
   description: string
   deliveryUrl: string | null
+  attachmentIds: string[]
 }
 
 export interface CreatedDeliveryResult {

@@ -4,6 +4,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createAcceptance, createDelivery } from '@/api/deliveries'
 import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
+import AttachmentList from '@/components/common/AttachmentList.vue'
+import AttachmentUploader from '@/components/common/AttachmentUploader.vue'
+import type { AttachmentRecord } from '@/types/attachment'
 import type {
   AcceptanceResult,
   CreatedAcceptanceResult,
@@ -12,7 +15,17 @@ import type {
   DeliveryRecord,
 } from '@/types/delivery'
 
-const props = defineProps<{ snapshot: DeliveryAcceptanceSnapshot }>()
+const props = withDefaults(
+  defineProps<{
+    snapshot: DeliveryAcceptanceSnapshot
+    pendingAttachments?: AttachmentRecord[]
+    pendingAttachmentsReady?: boolean
+  }>(),
+  {
+    pendingAttachments: () => [],
+    pendingAttachmentsReady: true,
+  },
+)
 const emit = defineEmits<{
   updated: [result: CreatedDeliveryResult | CreatedAcceptanceResult]
   conflict: []
@@ -24,6 +37,8 @@ const submittingAction = ref<'DELIVERY' | 'ACCEPTANCE' | null>(null)
 const deliveryServerErrors = reactive<Record<string, string>>({})
 const acceptanceServerErrors = reactive<Record<string, string>>({})
 const deliveryForm = reactive({ description: '', deliveryUrl: '' })
+const deliveryAttachments = ref<AttachmentRecord[]>([])
+const uploadingAttachments = ref(false)
 const acceptanceForm = reactive<{ result: AcceptanceResult; comment: string }>({
   result: 'ACCEPTED',
   comment: '',
@@ -147,7 +162,14 @@ function handleSubmitError(error: unknown, errors: Record<string, string>, fallb
 }
 
 async function handleDeliverySubmit(): Promise<void> {
-  if (!deliveryFormRef.value || submittingAction.value || !props.snapshot.canSubmitDelivery) return
+  if (
+    !deliveryFormRef.value ||
+    submittingAction.value ||
+    uploadingAttachments.value ||
+    !props.pendingAttachmentsReady ||
+    !props.snapshot.canSubmitDelivery
+  )
+    return
   submittingAction.value = 'DELIVERY'
   clearErrors(deliveryServerErrors)
   try {
@@ -157,6 +179,7 @@ async function handleDeliverySubmit(): Promise<void> {
       requestVersion: props.snapshot.requestVersion,
       description: deliveryForm.description.trim(),
       deliveryUrl: deliveryForm.deliveryUrl.trim() || null,
+      attachmentIds: deliveryAttachments.value.map((attachment) => attachment.id),
     })
     emit('updated', result)
   } catch (error) {
@@ -187,6 +210,13 @@ async function handleAcceptanceSubmit(): Promise<void> {
 }
 
 watch(() => props.snapshot, resetForms, { immediate: true })
+watch(
+  () => props.pendingAttachments,
+  (attachments) => {
+    deliveryAttachments.value = [...attachments]
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -206,12 +236,22 @@ watch(() => props.snapshot, resetForms, { immediate: true })
         rel="noopener noreferrer"
         >打开交付地址</a
       >
+      <AttachmentList
+        :attachments="latestDelivery.attachments"
+        empty-description="本次交付没有附件"
+      />
     </div>
     <el-empty v-else description="尚未提交交付物" />
 
     <template v-if="snapshot.canSubmitDelivery">
       <el-divider />
       <h3>提交交付物</h3>
+      <el-alert
+        v-if="!pendingAttachmentsReady"
+        type="warning"
+        :closable="false"
+        title="待提交附件加载失败，暂时不能提交交付，请先在上方重试加载。"
+      />
       <el-form
         ref="deliveryFormRef"
         :model="deliveryForm"
@@ -239,6 +279,15 @@ watch(() => props.snapshot, resetForms, { immediate: true })
             placeholder="https://example.com/delivery"
           />
         </el-form-item>
+        <el-form-item label="交付附件（可选）">
+          <AttachmentUploader
+            v-model="deliveryAttachments"
+            :request-id="snapshot.requestId"
+            business-type="DELIVERY"
+            :disabled="submittingAction !== null || !pendingAttachmentsReady"
+            @uploading-change="uploadingAttachments = $event"
+          />
+        </el-form-item>
         <el-alert
           type="info"
           :closable="false"
@@ -250,11 +299,44 @@ watch(() => props.snapshot, resetForms, { immediate: true })
             type="primary"
             native-type="submit"
             :loading="submittingAction === 'DELIVERY'"
-            :disabled="submittingAction !== null && submittingAction !== 'DELIVERY'"
+            :disabled="
+              uploadingAttachments || submittingAction !== null || !pendingAttachmentsReady
+            "
             >提交交付</el-button
           >
         </div>
       </el-form>
+    </template>
+
+    <template v-if="snapshot.deliveries.length > 1">
+      <el-divider />
+      <el-collapse>
+        <el-collapse-item title="查看历史交付记录">
+          <article
+            v-for="delivery in snapshot.deliveries.slice(1)"
+            :key="delivery.id"
+            class="history-delivery"
+          >
+            <div class="section-heading">
+              <strong>{{ delivery.submitterName }}</strong>
+              <span>{{ formatDateTime(delivery.createdAt) }}</span>
+            </div>
+            <p>{{ delivery.description }}</p>
+            <a
+              v-if="delivery.deliveryUrl && normalizedHttpUrl(delivery.deliveryUrl)"
+              :href="normalizedHttpUrl(delivery.deliveryUrl) ?? undefined"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              打开交付地址
+            </a>
+            <AttachmentList
+              :attachments="delivery.attachments"
+              empty-description="本次交付没有附件"
+            />
+          </article>
+        </el-collapse-item>
+      </el-collapse>
     </template>
 
     <template v-if="snapshot.canAccept && latestDelivery">
@@ -304,6 +386,20 @@ watch(() => props.snapshot, resetForms, { immediate: true })
 .latest-delivery {
   display: grid;
   gap: 10px;
+}
+.history-delivery {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.history-delivery:last-child {
+  border-bottom: 0;
+}
+.history-delivery p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .latest-delivery p {
   margin: 0;

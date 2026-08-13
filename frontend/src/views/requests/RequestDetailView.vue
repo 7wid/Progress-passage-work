@@ -4,13 +4,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getRequestAssignment } from '@/api/assignments'
 import { getRequestProgress } from '@/api/progress'
 import { getDeliveryAcceptance } from '@/api/deliveries'
+import { getRequestAttachments } from '@/api/attachments'
 import AssignmentPanel from '@/components/assignment/AssignmentPanel.vue'
+import AttachmentList from '@/components/common/AttachmentList.vue'
+import AttachmentUploader from '@/components/common/AttachmentUploader.vue'
 import DeliveryAcceptancePanel from '@/components/delivery/DeliveryAcceptancePanel.vue'
 import ProgressPanel from '@/components/progress/ProgressPanel.vue'
 import RequestTimeline from '@/components/progress/RequestTimeline.vue'
 import type { RequestAssignment } from '@/types/assignment'
 import type { RequestProgressSnapshot } from '@/types/progress'
 import type { DeliveryAcceptanceSnapshot } from '@/types/delivery'
+import type { AttachmentSnapshot } from '@/types/attachment'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmEvaluationRejection, getEvaluations } from '@/api/evaluations'
 import { getApiErrorMessage, getApiStatus } from '@/api/http'
@@ -32,6 +36,11 @@ const evaluations = ref<EvaluationRecord[]>([])
 const assignment = ref<RequestAssignment | null>(null)
 const progressSnapshot = ref<RequestProgressSnapshot | null>(null)
 const deliveryAcceptanceSnapshot = ref<DeliveryAcceptanceSnapshot | null>(null)
+const requestAttachmentSnapshot = ref<AttachmentSnapshot | null>(null)
+const pendingDeliveryAttachmentSnapshot = ref<AttachmentSnapshot | null>(null)
+const requestAttachmentError = ref('')
+const pendingDeliveryAttachmentError = ref('')
+const pendingDeliveryAttachmentLoading = ref(false)
 const errorMessage = ref('')
 const confirmingEvaluationId = ref<string | null>(null)
 
@@ -106,6 +115,11 @@ async function loadPage(retryCount = 0) {
   assignment.value = null
   progressSnapshot.value = null
   deliveryAcceptanceSnapshot.value = null
+  requestAttachmentSnapshot.value = null
+  pendingDeliveryAttachmentSnapshot.value = null
+  requestAttachmentError.value = ''
+  pendingDeliveryAttachmentError.value = ''
+  pendingDeliveryAttachmentLoading.value = false
   errorMessage.value = ''
 
   if (!/^[1-9]\d*$/.test(id)) {
@@ -164,6 +178,29 @@ async function loadPage(retryCount = 0) {
     assignment.value = requestAssignment
     progressSnapshot.value = requestProgress
     deliveryAcceptanceSnapshot.value = deliveryAcceptance
+
+    const [requestAttachmentsResult, pendingDeliveryAttachmentsResult] = await Promise.allSettled([
+      getRequestAttachments(id, 'REQUEST'),
+      getRequestAttachments(id, 'DELIVERY', true),
+    ])
+    if (sequence !== loadSequence) return
+
+    if (requestAttachmentsResult.status === 'fulfilled') {
+      requestAttachmentSnapshot.value = requestAttachmentsResult.value
+    } else {
+      requestAttachmentError.value = getApiErrorMessage(
+        requestAttachmentsResult.reason,
+        '需求附件加载失败',
+      )
+    }
+    if (pendingDeliveryAttachmentsResult.status === 'fulfilled') {
+      pendingDeliveryAttachmentSnapshot.value = pendingDeliveryAttachmentsResult.value
+    } else {
+      pendingDeliveryAttachmentError.value = getApiErrorMessage(
+        pendingDeliveryAttachmentsResult.reason,
+        '待提交交付附件加载失败',
+      )
+    }
   } catch (error) {
     if (sequence === loadSequence) {
       errorMessage.value = getApiErrorMessage(error, '需求不存在、已被删除，或当前账号没有查看权限')
@@ -172,6 +209,33 @@ async function loadPage(retryCount = 0) {
     if (sequence === loadSequence) {
       loading.value = false
     }
+  }
+}
+
+async function reloadRequestAttachments(): Promise<void> {
+  if (!detail.value) return
+  requestAttachmentError.value = ''
+  try {
+    requestAttachmentSnapshot.value = await getRequestAttachments(detail.value.id, 'REQUEST')
+  } catch (error) {
+    requestAttachmentError.value = getApiErrorMessage(error, '需求附件加载失败')
+  }
+}
+
+async function reloadPendingDeliveryAttachments(): Promise<void> {
+  if (!detail.value) return
+  pendingDeliveryAttachmentError.value = ''
+  pendingDeliveryAttachmentLoading.value = true
+  try {
+    pendingDeliveryAttachmentSnapshot.value = await getRequestAttachments(
+      detail.value.id,
+      'DELIVERY',
+      true,
+    )
+  } catch (error) {
+    pendingDeliveryAttachmentError.value = getApiErrorMessage(error, '待提交交付附件加载失败')
+  } finally {
+    pendingDeliveryAttachmentLoading.value = false
   }
 }
 
@@ -427,6 +491,33 @@ watch(
         </div>
       </el-card>
 
+      <el-card header="需求附件">
+        <el-alert
+          v-if="requestAttachmentError"
+          type="warning"
+          :closable="false"
+          :title="requestAttachmentError"
+        >
+          <template #default>
+            <el-button link type="primary" @click="reloadRequestAttachments">重试加载</el-button>
+          </template>
+        </el-alert>
+        <AttachmentUploader
+          v-if="requestAttachmentSnapshot?.canUpload"
+          :model-value="requestAttachmentSnapshot.attachments"
+          :request-id="detail.id"
+          business-type="REQUEST"
+          @update:model-value="
+            requestAttachmentSnapshot && (requestAttachmentSnapshot.attachments = $event)
+          "
+        />
+        <AttachmentList
+          v-else
+          :attachments="requestAttachmentSnapshot?.attachments ?? []"
+          empty-description="暂无需求附件"
+        />
+      </el-card>
+
       <!-- ===================================================== -->
       <!-- 评估历史 -->
       <!-- ===================================================== -->
@@ -512,9 +603,28 @@ watch(
         v-if="deliveryAcceptanceSnapshot"
         :key="deliveryAcceptanceSnapshot.requestVersion"
         :snapshot="deliveryAcceptanceSnapshot"
+        :pending-attachments="pendingDeliveryAttachmentSnapshot?.attachments ?? []"
+        :pending-attachments-ready="
+          pendingDeliveryAttachmentSnapshot !== null &&
+          pendingDeliveryAttachmentError === '' &&
+          !pendingDeliveryAttachmentLoading
+        "
         @updated="handleDeliveryAcceptanceUpdated"
         @conflict="handleDeliveryAcceptanceConflict"
       />
+
+      <el-alert
+        v-if="pendingDeliveryAttachmentError && deliveryAcceptanceSnapshot?.canSubmitDelivery"
+        type="warning"
+        :closable="false"
+        :title="pendingDeliveryAttachmentError"
+      >
+        <template #default>
+          <el-button link type="primary" @click="reloadPendingDeliveryAttachments">
+            重试加载待提交附件
+          </el-button>
+        </template>
+      </el-alert>
 
       <RequestTimeline
         :status-history="detail.statusHistory"

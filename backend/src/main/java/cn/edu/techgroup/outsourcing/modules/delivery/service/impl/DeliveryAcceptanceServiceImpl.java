@@ -18,6 +18,8 @@ import cn.edu.techgroup.outsourcing.modules.delivery.vo.CreatedAcceptanceResultV
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.CreatedDeliveryResultVO;
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.DeliveryAcceptanceSnapshotVO;
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.DeliveryVO;
+import cn.edu.techgroup.outsourcing.modules.file.service.AttachmentService;
+import cn.edu.techgroup.outsourcing.modules.file.vo.AttachmentVO;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
@@ -57,6 +59,7 @@ public class DeliveryAcceptanceServiceImpl
     private final AcceptanceMapper acceptanceMapper;
     private final StatusHistoryMapper statusHistoryMapper;
     private final UserMapper userMapper;
+    private final AttachmentService attachmentService;
 
     public DeliveryAcceptanceServiceImpl(
             RequestMapper requestMapper,
@@ -64,13 +67,15 @@ public class DeliveryAcceptanceServiceImpl
             DeliveryMapper deliveryMapper,
             AcceptanceMapper acceptanceMapper,
             StatusHistoryMapper statusHistoryMapper,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            AttachmentService attachmentService) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.deliveryMapper = deliveryMapper;
         this.acceptanceMapper = acceptanceMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.userMapper = userMapper;
+        this.attachmentService = attachmentService;
     }
 
     @Override
@@ -115,7 +120,9 @@ public class DeliveryAcceptanceServiceImpl
                 canSubmitDelivery,
                 canAccept,
                 deliveries.stream()
-                        .map(delivery -> toVO(delivery, userNames))
+                        .map(delivery -> toVO(delivery, userNames,
+                                attachmentService.findBoundDeliveryAttachments(
+                                        requestId, delivery.getId(), viewer)))
                         .toList(),
                 acceptances.stream()
                         .map(acceptance -> toVO(acceptance, userNames))
@@ -164,6 +171,10 @@ public class DeliveryAcceptanceServiceImpl
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
 
+        List<AttachmentVO> attachments =
+                attachmentService.bindPendingDeliveryAttachments(
+                        requestId, delivery.getId(), command.attachmentIds(), operator);
+
         insertStatusHistory(
                 requestId,
                 operator.id(),
@@ -172,7 +183,7 @@ public class DeliveryAcceptanceServiceImpl
                 "提交交付物，等待需求方验收");
 
         return new CreatedDeliveryResultVO(
-                toVO(delivery, Map.of(operator.id(), operator.displayName())),
+                toVO(delivery, Map.of(operator.id(), operator.displayName()), attachments),
                 RequestStatus.PENDING_ACCEPTANCE,
                 command.requestVersion() + 1);
     }
@@ -261,6 +272,10 @@ public class DeliveryAcceptanceServiceImpl
             throw invalidArgument("交付说明应为 5～5000 个字符");
         }
         validateDeliveryUrl(command.deliveryUrl());
+        if (command.attachmentIds() == null || command.attachmentIds().size() > 5
+                || command.attachmentIds().stream().anyMatch(id -> id == null || id <= 0)) {
+            throw invalidArgument("交付附件标识不正确，每次最多选择 5 个附件");
+        }
     }
 
     private void validateDeliveryUrl(String deliveryUrl) {
@@ -415,7 +430,8 @@ public class DeliveryAcceptanceServiceImpl
 
     private DeliveryVO toVO(
             DeliveryEntity delivery,
-            Map<Long, String> userNames) {
+            Map<Long, String> userNames,
+            List<AttachmentVO> attachments) {
         return new DeliveryVO(
                 delivery.getId().toString(),
                 delivery.getRequestId().toString(),
@@ -423,6 +439,7 @@ public class DeliveryAcceptanceServiceImpl
                 userNames.getOrDefault(delivery.getSubmitterId(), "未知用户"),
                 delivery.getDescription(),
                 delivery.getDeliveryUrl(),
+                attachments,
                 delivery.getCreatedAt());
     }
 

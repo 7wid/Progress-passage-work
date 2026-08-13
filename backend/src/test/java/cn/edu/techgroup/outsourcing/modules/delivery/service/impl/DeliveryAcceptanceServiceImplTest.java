@@ -29,6 +29,7 @@ import cn.edu.techgroup.outsourcing.modules.delivery.vo.CreatedAcceptanceResultV
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.CreatedDeliveryResultVO;
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.DeliveryAcceptanceSnapshotVO;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
+import cn.edu.techgroup.outsourcing.modules.file.service.AttachmentService;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
 import cn.edu.techgroup.outsourcing.modules.request.enums.RequestStatus;
@@ -62,6 +63,8 @@ class DeliveryAcceptanceServiceImplTest {
     private StatusHistoryMapper statusHistoryMapper;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private AttachmentService attachmentService;
 
     private DeliveryAcceptanceServiceImpl service;
 
@@ -73,7 +76,8 @@ class DeliveryAcceptanceServiceImplTest {
                 deliveryMapper,
                 acceptanceMapper,
                 statusHistoryMapper,
-                userMapper);
+                userMapper,
+                attachmentService);
     }
 
     @Test
