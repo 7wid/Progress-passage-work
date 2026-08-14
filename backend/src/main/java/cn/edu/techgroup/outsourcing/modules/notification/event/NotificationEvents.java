@@ -122,6 +122,14 @@ public final class NotificationEvents {
                         + (accepted ? " 已通过验收。" : " 的交付已退回，请查看验收意见。"));
     }
 
+    public static NotificationEvent adminRequestUpdated(
+            Long requestId, String requestNo, Long actorId,
+            List<Long> recipients, boolean reopened) {
+        return event(NotificationType.ADMIN_REQUEST_UPDATED, requestId, actorId, recipients,
+                reopened ? "需求已由管理员重新开启" : "需求已由管理员取消",
+                label(requestId, requestNo) + (reopened ? " 已重新开启，请查看最新状态。" : " 已取消，请查看处理记录。"));
+    }
+
     private static NotificationEvent event(
             NotificationType type,
             Long requestId,
