@@ -95,10 +95,10 @@ async function uploadTask(task: UploadTask): Promise<void> {
     tasks.value = tasks.value.filter((candidate) => candidate !== task)
   } catch (error) {
     task.state = 'FAILED'
-    task.error =
-      error instanceof Error
-        ? error.message
-        : getApiErrorMessage(error, `${task.file.name} 上传失败`)
+    task.error = getApiErrorMessage(
+      error,
+      error instanceof Error ? error.message : `${task.file.name} 上传失败`,
+    )
   }
 }
 
@@ -163,11 +163,11 @@ function removeFailedTask(task: UploadTask): void {
 async function removeAttachment(attachment: AttachmentRecord): Promise<void> {
   if (props.disabled || deletingId.value || processing.value || !attachment.canDelete) return
   try {
-    await ElMessageBox.confirm(
-      `确定删除尚未提交的附件“${attachment.originalName}”吗？`,
-      '删除附件',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
-    )
+    await ElMessageBox.confirm(`确定删除附件“${attachment.originalName}”吗？`, '删除附件', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
   } catch {
     return
   }

@@ -7,6 +7,10 @@ vi.mock('@/api/attachments', () => ({
   downloadAttachment: vi.fn(),
 }))
 
+const baseStubs = {
+  'el-empty': true,
+}
+
 const pendingAttachment: AttachmentRecord = {
   id: '20',
   requestId: '10',
@@ -27,6 +31,7 @@ describe('AttachmentList', () => {
       props: { attachments: [pendingAttachment] },
       global: {
         stubs: {
+          ...baseStubs,
           'el-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
         },
       },
@@ -42,7 +47,12 @@ describe('AttachmentList', () => {
       props: {
         attachments: [{ ...pendingAttachment, businessId: '30', canDelete: false }],
       },
-      global: { stubs: { 'el-button': { template: '<button><slot /></button>' } } },
+      global: {
+        stubs: {
+          ...baseStubs,
+          'el-button': { template: '<button><slot /></button>' },
+        },
+      },
     })
     expect(wrapper.findAll('button')).toHaveLength(1)
   })

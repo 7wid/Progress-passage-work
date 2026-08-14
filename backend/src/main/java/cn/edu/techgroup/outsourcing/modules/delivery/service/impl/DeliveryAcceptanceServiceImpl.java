@@ -20,6 +20,8 @@ import cn.edu.techgroup.outsourcing.modules.delivery.vo.DeliveryAcceptanceSnapsh
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.DeliveryVO;
 import cn.edu.techgroup.outsourcing.modules.file.service.AttachmentService;
 import cn.edu.techgroup.outsourcing.modules.file.vo.AttachmentVO;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
@@ -60,6 +62,7 @@ public class DeliveryAcceptanceServiceImpl
     private final StatusHistoryMapper statusHistoryMapper;
     private final UserMapper userMapper;
     private final AttachmentService attachmentService;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public DeliveryAcceptanceServiceImpl(
             RequestMapper requestMapper,
@@ -68,7 +71,8 @@ public class DeliveryAcceptanceServiceImpl
             AcceptanceMapper acceptanceMapper,
             StatusHistoryMapper statusHistoryMapper,
             UserMapper userMapper,
-            AttachmentService attachmentService) {
+            AttachmentService attachmentService,
+            NotificationEventPublisher notificationEventPublisher) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.deliveryMapper = deliveryMapper;
@@ -76,6 +80,7 @@ public class DeliveryAcceptanceServiceImpl
         this.statusHistoryMapper = statusHistoryMapper;
         this.userMapper = userMapper;
         this.attachmentService = attachmentService;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Override
@@ -182,6 +187,13 @@ public class DeliveryAcceptanceServiceImpl
                 RequestStatus.PENDING_ACCEPTANCE,
                 "提交交付物，等待需求方验收");
 
+        notificationEventPublisher.publish(
+                NotificationEvents.deliverySubmitted(
+                        request.getId(),
+                        request.getRequestNo(),
+                        operator.id(),
+                        request.getCreatorId()));
+
         return new CreatedDeliveryResultVO(
                 toVO(delivery, Map.of(operator.id(), operator.displayName()), attachments),
                 RequestStatus.PENDING_ACCEPTANCE,
@@ -250,6 +262,18 @@ public class DeliveryAcceptanceServiceImpl
                 RequestStatus.PENDING_ACCEPTANCE,
                 targetStatus,
                 reason);
+
+        List<Long> recipients = requestMemberMapper.selectByRequestId(requestId)
+                .stream()
+                .map(RequestMemberEntity::getUserId)
+                .toList();
+        notificationEventPublisher.publish(
+                NotificationEvents.acceptanceCompleted(
+                        request.getId(),
+                        request.getRequestNo(),
+                        operator.id(),
+                        recipients,
+                        command.result() == AcceptanceResult.ACCEPTED));
 
         return new CreatedAcceptanceResultVO(
                 toVO(acceptance, Map.of(operator.id(), operator.displayName())),

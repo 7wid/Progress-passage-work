@@ -11,6 +11,8 @@ import cn.edu.techgroup.outsourcing.modules.evaluation.service.EvaluationService
 import cn.edu.techgroup.outsourcing.modules.evaluation.vo.EvaluationResultVO;
 import cn.edu.techgroup.outsourcing.modules.evaluation.vo.EvaluationVO;
 import cn.edu.techgroup.outsourcing.modules.evaluation.vo.RejectionConfirmationVO;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
@@ -42,16 +44,19 @@ public class EvaluationServiceImpl implements EvaluationService {
     private final RequestMapper requestMapper;
     private final StatusHistoryMapper statusHistoryMapper;
     private final UserMapper userMapper;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public EvaluationServiceImpl(
             EvaluationMapper evaluationMapper,
             RequestMapper requestMapper,
             StatusHistoryMapper statusHistoryMapper,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            NotificationEventPublisher notificationEventPublisher) {
         this.evaluationMapper = evaluationMapper;
         this.requestMapper = requestMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.userMapper = userMapper;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Override
@@ -162,6 +167,12 @@ public class EvaluationServiceImpl implements EvaluationService {
                 command.conclusion() == EvaluationConclusion.NOT_FEASIBLE
                         && operator.role() == UserRole.MEMBER;
 
+        publishEvaluationEvent(
+                request,
+                command.conclusion(),
+                operator,
+                confirmationRequired);
+
         return new EvaluationResultVO(
                 toVO(evaluation, operator.displayName(), false),
                 targetStatus,
@@ -243,10 +254,55 @@ public class EvaluationServiceImpl implements EvaluationService {
                 RequestStatus.REJECTED,
                 "管理员确认暂不承接");
 
+        notificationEventPublisher.publish(
+                NotificationEvents.evaluationCompleted(
+                        request.getId(),
+                        request.getRequestNo(),
+                        operator.id(),
+                        request.getCreatorId(),
+                        "暂不承接"));
+
         return new RejectionConfirmationVO(
                 requestId.toString(),
                 RequestStatus.REJECTED,
                 command.requestVersion() + 1);
+    }
+
+    private void publishEvaluationEvent(
+            RequestEntity request,
+            EvaluationConclusion conclusion,
+            LoginUser operator,
+            boolean confirmationRequired) {
+        if (confirmationRequired) {
+            notificationEventPublisher.publish(
+                    NotificationEvents.rejectionConfirmationRequired(
+                            request.getId(),
+                            request.getRequestNo(),
+                            operator.id(),
+                            List.of()));
+            return;
+        }
+
+        if (conclusion == EvaluationConclusion.NEED_MORE_INFO) {
+            notificationEventPublisher.publish(
+                    NotificationEvents.informationRequired(
+                            request.getId(),
+                            request.getRequestNo(),
+                            operator.id(),
+                            request.getCreatorId()));
+            return;
+        }
+
+        String publicResult = conclusion == EvaluationConclusion.FEASIBLE
+                ? "可承接"
+                : "暂不承接";
+        notificationEventPublisher.publish(
+                NotificationEvents.evaluationCompleted(
+                        request.getId(),
+                        request.getRequestNo(),
+                        operator.id(),
+                        request.getCreatorId(),
+                        publicResult));
     }
 
     private void validateCreateCommand(

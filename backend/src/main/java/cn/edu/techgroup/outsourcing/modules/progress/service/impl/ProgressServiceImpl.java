@@ -5,6 +5,8 @@ import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
 import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntity;
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.dto.CreateProgressCommand;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.ProgressLogEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.ProgressLogMapper;
@@ -42,16 +44,19 @@ public class ProgressServiceImpl implements ProgressService {
     private final RequestMemberMapper requestMemberMapper;
     private final ProgressLogMapper progressLogMapper;
     private final UserMapper userMapper;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public ProgressServiceImpl(
             RequestMapper requestMapper,
             RequestMemberMapper requestMemberMapper,
             ProgressLogMapper progressLogMapper,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            NotificationEventPublisher notificationEventPublisher) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.progressLogMapper = progressLogMapper;
         this.userMapper = userMapper;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Override
@@ -145,6 +150,15 @@ public class ProgressServiceImpl implements ProgressService {
         log.setCreatedAt(createdAt);
         if (progressLogMapper.insert(log) != 1 || log.getId() == null) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
+
+        if (Boolean.TRUE.equals(command.visibleToRequester())) {
+            notificationEventPublisher.publish(
+                    NotificationEvents.progressUpdated(
+                            request.getId(),
+                            request.getRequestNo(),
+                            operator.id(),
+                            request.getCreatorId()));
         }
 
         ProgressLogVO logView = toVO(log, operator.displayName());

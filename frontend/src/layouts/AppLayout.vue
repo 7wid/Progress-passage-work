@@ -2,10 +2,13 @@
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
+import NotificationBell from '@/components/notification/NotificationBell.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
 const isRequester = computed(() => authStore.user?.role === 'REQUESTER')
 
@@ -24,6 +27,7 @@ async function handleLogout() {
   } catch {
     ElMessage.warning('退出请求失败，本地登录状态已清除')
   } finally {
+    notificationStore.reset()
     await router.replace('/login')
   }
 }
@@ -58,6 +62,7 @@ async function handleLogout() {
         <span>计算机技术组外包需求管理系统</span>
 
         <div class="app-shell__user">
+          <NotificationBell />
           <span>{{ authStore.user?.displayName }}</span>
           <el-button link type="primary" @click="handleLogout"> 退出登录 </el-button>
         </div>
