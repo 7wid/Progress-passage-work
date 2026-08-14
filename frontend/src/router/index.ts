@@ -10,6 +10,7 @@ import MemberManagementView from '@/views/admin/MemberManagementView.vue'
 import CategoryManagementView from '@/views/admin/CategoryManagementView.vue'
 import StatisticsView from '@/views/admin/StatisticsView.vue'
 import SettingsView from '@/views/settings/SettingsView.vue'
+import NotificationCenterView from '@/views/notifications/NotificationCenterView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -50,6 +51,11 @@ const router = createRouter({
           path: 'admin/statistics',
           component: StatisticsView,
           meta: { roles: ['ADMIN'] },
+        },
+        {
+          path: 'notifications',
+          name: 'notifications',
+          component: NotificationCenterView,
         },
         { path: 'settings', component: SettingsView },
       ],

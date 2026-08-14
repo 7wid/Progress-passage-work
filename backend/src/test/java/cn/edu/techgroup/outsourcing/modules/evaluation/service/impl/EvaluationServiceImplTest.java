@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -26,6 +27,8 @@ import cn.edu.techgroup.outsourcing.modules.evaluation.mapper.EvaluationMapper;
 import cn.edu.techgroup.outsourcing.modules.evaluation.vo.EvaluationResultVO;
 import cn.edu.techgroup.outsourcing.modules.evaluation.vo.EvaluationVO;
 import cn.edu.techgroup.outsourcing.modules.evaluation.vo.RejectionConfirmationVO;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.enums.NotificationType;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
@@ -68,6 +71,9 @@ static void initializeMybatisMetadata() {
     @Mock
     private UserMapper userMapper;
 
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
+
     private EvaluationServiceImpl evaluationService;
 
 
@@ -80,7 +86,8 @@ static void initializeMybatisMetadata() {
                 evaluationMapper,
                 requestMapper,
                 statusHistoryMapper,
-                userMapper);
+                userMapper,
+                notificationEventPublisher);
     }
 
     @Test
@@ -115,6 +122,9 @@ static void initializeMybatisMetadata() {
 
         assertEquals(1, result.requestVersion());
         assertEquals(1, result.evaluation().version());
+        verify(notificationEventPublisher).publish(argThat(event ->
+                event.type() == NotificationType.EVALUATION_COMPLETED
+                        && event.recipientIds().equals(List.of(1L))));
     }
 
     @Test
@@ -179,6 +189,11 @@ static void initializeMybatisMetadata() {
                 result.requestStatus());
 
         assertTrue(result.adminConfirmationRequired());
+
+        verify(notificationEventPublisher).publish(argThat(event ->
+                event.type()
+                                == NotificationType.REJECTION_CONFIRMATION_REQUIRED
+                        && event.recipientIds().isEmpty()));
 
         verify(
                 statusHistoryMapper,

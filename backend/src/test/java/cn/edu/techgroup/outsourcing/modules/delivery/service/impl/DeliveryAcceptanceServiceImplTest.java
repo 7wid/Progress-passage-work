@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +31,8 @@ import cn.edu.techgroup.outsourcing.modules.delivery.vo.CreatedDeliveryResultVO;
 import cn.edu.techgroup.outsourcing.modules.delivery.vo.DeliveryAcceptanceSnapshotVO;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.file.service.AttachmentService;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.enums.NotificationType;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
 import cn.edu.techgroup.outsourcing.modules.request.enums.RequestStatus;
@@ -65,6 +68,8 @@ class DeliveryAcceptanceServiceImplTest {
     private UserMapper userMapper;
     @Mock
     private AttachmentService attachmentService;
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
 
     private DeliveryAcceptanceServiceImpl service;
 
@@ -77,7 +82,8 @@ class DeliveryAcceptanceServiceImplTest {
                 acceptanceMapper,
                 statusHistoryMapper,
                 userMapper,
-                attachmentService);
+                attachmentService,
+                notificationEventPublisher);
     }
 
     @Test
@@ -166,6 +172,9 @@ class DeliveryAcceptanceServiceImplTest {
         assertEquals(5, result.requestVersion());
         assertEquals("21", result.delivery().id());
         verify(statusHistoryMapper).insert(any(StatusHistoryEntity.class));
+        verify(notificationEventPublisher).publish(argThat(event ->
+                event.type() == NotificationType.DELIVERY_SUBMITTED
+                        && event.recipientIds().equals(List.of(1L))));
     }
 
     @Test
@@ -291,6 +300,10 @@ class DeliveryAcceptanceServiceImplTest {
         assignAcceptanceIdOnInsert(41L);
         when(statusHistoryMapper.insert(any(StatusHistoryEntity.class)))
                 .thenReturn(1);
+        when(requestMemberMapper.selectByRequestId(REQUEST_ID))
+                .thenReturn(List.of(
+                        member(2L, RequestMemberType.OWNER),
+                        member(3L, RequestMemberType.PARTICIPANT)));
 
         CreatedAcceptanceResultVO result = service.createAcceptance(
                 REQUEST_ID,
@@ -303,6 +316,9 @@ class DeliveryAcceptanceServiceImplTest {
         assertSame(RequestStatus.COMPLETED, result.requestStatus());
         assertEquals("31", result.acceptance().deliveryId());
         assertEquals(6, result.requestVersion());
+        verify(notificationEventPublisher).publish(argThat(event ->
+                event.type() == NotificationType.ACCEPTANCE_COMPLETED
+                        && event.recipientIds().equals(List.of(2L, 3L))));
     }
 
     @Test

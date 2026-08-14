@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -21,6 +22,8 @@ import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntit
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.enums.NotificationType;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
@@ -52,6 +55,8 @@ class AssignmentServiceImplTest {
     private UserMapper userMapper;
     @Mock
     private StatusHistoryMapper statusHistoryMapper;
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
 
     private AssignmentServiceImpl assignmentService;
 
@@ -61,7 +66,8 @@ class AssignmentServiceImplTest {
                 requestMapper,
                 requestMemberMapper,
                 userMapper,
-                statusHistoryMapper);
+                statusHistoryMapper,
+                notificationEventPublisher);
     }
 
     @Test
@@ -107,6 +113,9 @@ class AssignmentServiceImplTest {
         verify(requestMemberMapper, times(2))
                 .insert(any(RequestMemberEntity.class));
         verify(statusHistoryMapper).insert(any(StatusHistoryEntity.class));
+        verify(notificationEventPublisher).publish(argThat(event ->
+                event.type() == NotificationType.ASSIGNMENT_UPDATED
+                        && event.recipientIds().equals(List.of(2L, 3L, 1L))));
     }
 
     @Test
@@ -132,6 +141,7 @@ class AssignmentServiceImplTest {
         verify(requestMapper, never()).compareAndSetStatus(
                 anyLong(), anyString(), anyString(), anyInt());
         verifyNoInteractions(statusHistoryMapper);
+        verifyNoInteractions(notificationEventPublisher);
     }
 
     @Test

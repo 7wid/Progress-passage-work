@@ -6,6 +6,8 @@ import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.category.entity.CategoryEntity;
 import cn.edu.techgroup.outsourcing.modules.category.mapper.CategoryMapper;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.dto.CreateRequestCommand;
@@ -53,6 +55,7 @@ public class RequestServiceImpl implements RequestService {
     private final StatusHistoryMapper statusHistoryMapper;
     private final RequestMemberMapper requestMemberMapper;
     private final RequestNumberGenerator requestNumberGenerator;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public RequestServiceImpl(
             RequestMapper requestMapper,
@@ -60,13 +63,15 @@ public class RequestServiceImpl implements RequestService {
             StatusHistoryMapper statusHistoryMapper,
             RequestNumberGenerator requestNumberGenerator,
             RequestMemberMapper requestMemberMapper,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            NotificationEventPublisher notificationEventPublisher) {
         this.requestMapper = requestMapper;
         this.categoryMapper = categoryMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.requestNumberGenerator = requestNumberGenerator;
         this.userMapper = userMapper;
         this.requestMemberMapper = requestMemberMapper;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Override
@@ -151,6 +156,13 @@ public class RequestServiceImpl implements RequestService {
         if (statusHistoryMapper.insert(history) != 1) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
+
+        notificationEventPublisher.publish(
+                NotificationEvents.requestSubmitted(
+                        entity.getId(),
+                        entity.getRequestNo(),
+                        operator.id(),
+                        List.of()));
 
         return CreatedRequestVO.from(entity);
     }

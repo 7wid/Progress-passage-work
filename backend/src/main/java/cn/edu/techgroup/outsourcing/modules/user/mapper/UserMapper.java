@@ -12,6 +12,24 @@ import org.apache.ibatis.annotations.Select;
 public interface UserMapper extends BaseMapper<UserEntity> {
 
     @Select("""
+            SELECT id
+            FROM sys_user
+            WHERE status = 'ACTIVE'
+              AND role IN ('MEMBER', 'ADMIN')
+            ORDER BY id
+            """)
+    List<Long> selectActiveTeamUserIds();
+
+    @Select("""
+            SELECT id
+            FROM sys_user
+            WHERE status = 'ACTIVE'
+              AND role = 'ADMIN'
+            ORDER BY id
+            """)
+    List<Long> selectActiveAdminIds();
+
+    @Select("""
             <script>
             SELECT id,
                    account,

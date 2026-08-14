@@ -1,8 +1,9 @@
 import { defineComponent, h } from 'vue'
 import { flushPromises, shallowMount } from '@vue/test-utils'
+import { ElMessageBox } from 'element-plus'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AttachmentUploader from './AttachmentUploader.vue'
-import { uploadRequestAttachment } from '@/api/attachments'
+import { deletePendingAttachment, uploadRequestAttachment } from '@/api/attachments'
 import type { AttachmentRecord } from '@/types/attachment'
 
 vi.mock('@/api/attachments', async (importOriginal) => ({
@@ -12,6 +13,7 @@ vi.mock('@/api/attachments', async (importOriginal) => ({
 }))
 
 const uploadMock = vi.mocked(uploadRequestAttachment)
+const deleteMock = vi.mocked(deletePendingAttachment)
 const ButtonStub = defineComponent({
   setup(_props, { slots }) {
     return () => h('button', slots.default?.())
@@ -36,7 +38,10 @@ function mountUploader(modelValue: AttachmentRecord[] = []) {
 }
 
 describe('AttachmentUploader', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue(undefined as never)
+  })
 
   it('串行上传选择的文件并发布服务端附件', async () => {
     let active = 0
@@ -100,5 +105,57 @@ describe('AttachmentUploader', () => {
     await input.trigger('change')
     await flushPromises()
     expect(uploadMock).not.toHaveBeenCalled()
+  })
+
+  it('优先显示后端返回的安全业务错误消息', async () => {
+    uploadMock.mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        data: {
+          error: {
+            message: '文件内容与扩展名不匹配',
+          },
+        },
+      },
+    })
+    const wrapper = mountUploader()
+    const input = wrapper.get('input[type="file"]')
+    Object.defineProperty(input.element, 'files', {
+      value: [new File(['not-pdf'], 'report.pdf', { type: 'application/pdf' })],
+    })
+
+    await input.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('文件内容与扩展名不匹配')
+    expect(wrapper.text()).not.toContain('Request failed with status code')
+  })
+
+  it('使用适用于需求附件和交付附件的通用删除确认文案', async () => {
+    const existing = {
+      id: '21',
+      requestId: '10',
+      businessType: 'REQUEST',
+      businessId: '10',
+      originalName: 'requirement.pdf',
+      contentType: 'application/pdf',
+      sizeBytes: 1024,
+      uploaderId: '2',
+      uploaderName: '需求方',
+      canDelete: true,
+      createdAt: '2026-08-13T08:00:00Z',
+    } satisfies AttachmentRecord
+    deleteMock.mockResolvedValue(undefined)
+    const wrapper = mountUploader([existing])
+
+    wrapper.findComponent({ name: 'AttachmentList' }).vm.$emit('remove', existing)
+    await flushPromises()
+
+    expect(ElMessageBox.confirm).toHaveBeenCalledWith(
+      '确定删除附件“requirement.pdf”吗？',
+      '删除附件',
+      expect.any(Object),
+    )
+    expect(deleteMock).toHaveBeenCalledWith('10', '21')
   })
 })

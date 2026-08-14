@@ -10,6 +10,8 @@ import cn.edu.techgroup.outsourcing.modules.assignment.service.AssignmentService
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberOptionVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestMemberVO;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.StatusHistoryMapper;
 import cn.edu.techgroup.outsourcing.modules.request.entity.RequestEntity;
@@ -21,6 +23,7 @@ import cn.edu.techgroup.outsourcing.modules.user.enums.UserStatus;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,16 +48,19 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final RequestMemberMapper requestMemberMapper;
     private final UserMapper userMapper;
     private final StatusHistoryMapper statusHistoryMapper;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     public AssignmentServiceImpl(
             RequestMapper requestMapper,
             RequestMemberMapper requestMemberMapper,
             UserMapper userMapper,
-            StatusHistoryMapper statusHistoryMapper) {
+            StatusHistoryMapper statusHistoryMapper,
+            NotificationEventPublisher notificationEventPublisher) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.userMapper = userMapper;
         this.statusHistoryMapper = statusHistoryMapper;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
     @Override
@@ -152,6 +158,14 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         List<RequestMemberEntity> finalMembers =
                 requestMemberMapper.selectByRequestId(requestId);
+        List<Long> recipients = new ArrayList<>(desiredTypes.keySet());
+        recipients.add(request.getCreatorId());
+        notificationEventPublisher.publish(
+                NotificationEvents.assignmentUpdated(
+                        request.getId(),
+                        request.getRequestNo(),
+                        operator.id(),
+                        recipients));
         return buildAssignmentVO(request, finalMembers, targetUsers);
     }
 

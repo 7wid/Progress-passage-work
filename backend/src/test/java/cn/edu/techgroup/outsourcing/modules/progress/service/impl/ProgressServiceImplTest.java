@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,6 +20,8 @@ import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
 import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntity;
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
+import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
+import cn.edu.techgroup.outsourcing.modules.notification.enums.NotificationType;
 import cn.edu.techgroup.outsourcing.modules.progress.dto.CreateProgressCommand;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.ProgressLogEntity;
 import cn.edu.techgroup.outsourcing.modules.progress.mapper.ProgressLogMapper;
@@ -52,6 +55,8 @@ class ProgressServiceImplTest {
     private ProgressLogMapper progressLogMapper;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private NotificationEventPublisher notificationEventPublisher;
 
     private ProgressServiceImpl progressService;
 
@@ -61,7 +66,8 @@ class ProgressServiceImplTest {
                 requestMapper,
                 requestMemberMapper,
                 progressLogMapper,
-                userMapper);
+                userMapper,
+                notificationEventPublisher);
     }
 
     @Test
@@ -200,7 +206,36 @@ class ProgressServiceImplTest {
         assertEquals(65, result.currentProgress());
         assertEquals(5, result.requestVersion());
         assertEquals("21", result.log().id());
+        verify(notificationEventPublisher).publish(argThat(event ->
+                event.type() == NotificationType.PROGRESS_UPDATED
+                        && event.recipientIds().equals(List.of(1L))));
         assertEquals("测试用户", result.log().authorName());
+    }
+
+    @Test
+    void internalProgressNeverPublishesRequesterNotification() {
+        when(requestMapper.selectById(REQUEST_ID))
+                .thenReturn(request(1L, RequestStatus.IN_PROGRESS, 4, 40));
+        when(requestMemberMapper.selectByRequestId(REQUEST_ID))
+                .thenReturn(List.of(member(2L, RequestMemberType.OWNER)));
+        when(requestMapper.compareAndSetProgress(
+                REQUEST_ID,
+                "IN_PROGRESS",
+                4,
+                55))
+                .thenReturn(1);
+        doAnswer(invocation -> {
+            ProgressLogEntity entity = invocation.getArgument(0);
+            entity.setId(23L);
+            return 1;
+        }).when(progressLogMapper).insert(any(ProgressLogEntity.class));
+
+        progressService.create(
+                REQUEST_ID,
+                command(4, 55, false),
+                loginUser(2L, UserRole.MEMBER));
+
+        verifyNoInteractions(notificationEventPublisher);
     }
 
     @Test
