@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getLoginErrorMessage } from './http'
+import { getApiErrorCode, getLoginErrorMessage } from './http'
 
 function axiosError(status?: number): unknown {
   return {
@@ -21,5 +21,17 @@ describe('login error message', () => {
 
   it('没有响应时提示后端未启动', () => {
     expect(getLoginErrorMessage(axiosError())).toBe('无法连接后端服务，请确认后端已经启动')
+  })
+})
+
+describe('api error code', () => {
+  it('读取后端业务错误码并兼容非 Axios 错误', () => {
+    expect(
+      getApiErrorCode({
+        isAxiosError: true,
+        response: { status: 409, data: { error: { code: 'DATA_VERSION_CONFLICT' } } },
+      }),
+    ).toBe('DATA_VERSION_CONFLICT')
+    expect(getApiErrorCode(new Error('network'))).toBeUndefined()
   })
 })

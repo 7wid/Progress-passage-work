@@ -2,9 +2,7 @@ package cn.edu.techgroup.outsourcing.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
-
+import cn.edu.techgroup.outsourcing.security.ActiveSessionValidationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +15,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,63 +28,66 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     @Bean
-public SecurityFilterChain securityFilterChain(
-        HttpSecurity http,
-        SecurityContextRepository securityContextRepository) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            SecurityContextRepository securityContextRepository,
+            ActiveSessionValidationFilter activeSessionValidationFilter)
+            throws Exception {
+        CookieCsrfTokenRepository csrfRepository =
+                CookieCsrfTokenRepository.withHttpOnlyFalse();
 
-    CookieCsrfTokenRepository csrfRepository =
-            CookieCsrfTokenRepository.withHttpOnlyFalse();
+        http.cors(withDefaults())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfRepository)
+                        .csrfTokenRequestHandler(
+                                new SpaCsrfTokenRequestHandler()))
+                .securityContext(security -> security
+                        .securityContextRepository(securityContextRepository)
+                        .requireExplicitSave(true))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**")
+                        .permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/auth/csrf")
+                        .permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/auth/login")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(
+                                (request, response, exception) ->
+                                        response.sendError(
+                                                HttpServletResponse.SC_UNAUTHORIZED))
+                        .accessDeniedHandler(
+                                (request, response, exception) ->
+                                        response.sendError(
+                                                HttpServletResponse.SC_FORBIDDEN)))
+                .logout(logout -> logout
+                        .logoutUrl("/api/v1/auth/logout")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("SESSION")
+                        .logoutSuccessHandler(
+                                (request, response, authentication) ->
+                                        response.setStatus(
+                                                HttpServletResponse.SC_NO_CONTENT)))
+                .addFilterBefore(
+                        activeSessionValidationFilter,
+                        AuthorizationFilter.class);
 
-    http.cors(withDefaults())
-            .csrf(csrf -> csrf
-                    .csrfTokenRepository(csrfRepository)
-                    .csrfTokenRequestHandler(
-                            new SpaCsrfTokenRequestHandler()))
-            .securityContext(security -> security
-                    .securityContextRepository(securityContextRepository)
-                    .requireExplicitSave(true))
-            .authorizeHttpRequests(authorize -> authorize
-                    .requestMatchers(
-                            "/actuator/health",
-                            "/v3/api-docs/**",
-                            "/swagger-ui/**")
-                    .permitAll()
-                    .requestMatchers(
-                            HttpMethod.GET,
-                            "/api/v1/auth/csrf")
-                    .permitAll()
-                    .requestMatchers(
-                            HttpMethod.POST,
-                            "/api/v1/auth/login")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-            .exceptionHandling(exceptions -> exceptions
-                    .authenticationEntryPoint(
-                            (request, response, exception) ->
-                                    response.sendError(
-                                            HttpServletResponse.SC_UNAUTHORIZED))
-                    .accessDeniedHandler(
-                            (request, response, exception) ->
-                                    response.sendError(
-                                            HttpServletResponse.SC_FORBIDDEN)))
-            .logout(logout -> logout
-                    .logoutUrl("/api/v1/auth/logout")
-                    .invalidateHttpSession(true)
-                    .deleteCookies("SESSION")
-                    .logoutSuccessHandler(
-                            (request, response, authentication) ->
-                                    response.setStatus(
-                                            HttpServletResponse.SC_NO_CONTENT)));
-
-    return http.build();
-}
-
+        return http.build();
+    }
 
     @Bean
     public SecurityContextRepository securityContextRepository() {
-    return new HttpSessionSecurityContextRepository();
-}
+        return new HttpSessionSecurityContextRepository();
+    }
 
     @Bean
     public AuthenticationManager authenticationManager(
@@ -97,14 +101,18 @@ public SecurityFilterChain securityFilterChain(
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(AppProperties properties) {
+    public CorsConfigurationSource corsConfigurationSource(
+            AppProperties properties) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.webOrigins());
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
+        configuration.setAllowedMethods(
+                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(
+                List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
         configuration.setExposedHeaders(List.of("X-Request-Id"));
         configuration.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
         return source;
     }

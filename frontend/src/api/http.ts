@@ -39,6 +39,10 @@ export function getApiStatus(error: unknown): number | undefined {
   return axios.isAxiosError<ApiErrorPayload>(error) ? error.response?.status : undefined
 }
 
+export function getApiErrorCode(error: unknown): string | undefined {
+  return axios.isAxiosError<ApiErrorPayload>(error) ? error.response?.data?.error?.code : undefined
+}
+
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError<ApiErrorPayload>(error)) {
     return fallback

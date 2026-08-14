@@ -5,6 +5,7 @@ import { getRequestAssignment } from '@/api/assignments'
 import { getRequestProgress } from '@/api/progress'
 import { getDeliveryAcceptance } from '@/api/deliveries'
 import { getRequestAttachments } from '@/api/attachments'
+import AdminRequestActions from '@/components/admin/AdminRequestActions.vue'
 import AssignmentPanel from '@/components/assignment/AssignmentPanel.vue'
 import AttachmentList from '@/components/common/AttachmentList.vue'
 import AttachmentUploader from '@/components/common/AttachmentUploader.vue'
@@ -313,6 +314,14 @@ async function handleDeliveryAcceptanceConflict(): Promise<void> {
   await loadPage()
 }
 
+async function handleAdminRequestUpdated(): Promise<void> {
+  await loadPage()
+}
+
+async function handleAdminRequestConflict(): Promise<void> {
+  await loadPage()
+}
+
 async function handleConfirmRejection(evaluation: EvaluationRecord) {
   if (!detail.value || confirmingEvaluationId.value !== null) {
     return
@@ -611,6 +620,16 @@ watch(
         "
         @updated="handleDeliveryAcceptanceUpdated"
         @conflict="handleDeliveryAcceptanceConflict"
+      />
+
+      <AdminRequestActions
+        v-if="isAdmin"
+        :key="`admin-actions-${detail.version}`"
+        :request-id="detail.id"
+        :status="detail.status"
+        :version="detail.version"
+        @updated="handleAdminRequestUpdated"
+        @conflict="handleAdminRequestConflict"
       />
 
       <el-alert

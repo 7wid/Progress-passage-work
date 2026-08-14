@@ -39,16 +39,19 @@ const router = createRouter({
         },
         {
           path: 'admin/members',
+          name: 'admin-members',
           component: MemberManagementView,
           meta: { roles: ['ADMIN'] },
         },
         {
           path: 'admin/categories',
+          name: 'admin-categories',
           component: CategoryManagementView,
           meta: { roles: ['ADMIN'] },
         },
         {
           path: 'admin/statistics',
+          name: 'admin-statistics',
           component: StatisticsView,
           meta: { roles: ['ADMIN'] },
         },

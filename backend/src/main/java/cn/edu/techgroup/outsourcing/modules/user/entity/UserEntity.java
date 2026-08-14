@@ -17,6 +17,7 @@ public class UserEntity {
     private String displayName;
     private String email;
     private String phone;
+    private String department;
     private UserRole role;
     private UserStatus status;
     private Integer failedLoginCount;
@@ -36,6 +37,8 @@ public class UserEntity {
     public void setEmail(String email) { this.email = email; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }
     public UserStatus getStatus() { return status; }

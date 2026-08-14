@@ -10,6 +10,7 @@ import cn.edu.techgroup.outsourcing.modules.assignment.service.AssignmentService
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberOptionVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestMemberVO;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
 import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
@@ -49,18 +50,21 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final UserMapper userMapper;
     private final StatusHistoryMapper statusHistoryMapper;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditRecorder auditRecorder;
 
     public AssignmentServiceImpl(
             RequestMapper requestMapper,
             RequestMemberMapper requestMemberMapper,
             UserMapper userMapper,
             StatusHistoryMapper statusHistoryMapper,
-            NotificationEventPublisher notificationEventPublisher) {
+            NotificationEventPublisher notificationEventPublisher,
+            AuditRecorder auditRecorder) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.userMapper = userMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.notificationEventPublisher = notificationEventPublisher;
+        this.auditRecorder = auditRecorder;
     }
 
     @Override
@@ -158,6 +162,15 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         List<RequestMemberEntity> finalMembers =
                 requestMemberMapper.selectByRequestId(requestId);
+        auditRecorder.record(
+                operator.id(),
+                "ASSIGNMENT_UPDATE",
+                "REQUEST",
+                requestId.toString(),
+                Map.of("members", existingMemberSnapshot(existingMembers)),
+                Map.of(
+                        "members", desiredMemberSnapshot(desiredTypes),
+                        "reason", command.reason().trim()));
         List<Long> recipients = new ArrayList<>(desiredTypes.keySet());
         recipients.add(request.getCreatorId());
         notificationEventPublisher.publish(
@@ -200,8 +213,8 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         String reason = command.reason();
         if (!StringUtils.hasText(reason)
-                || reason.length() < MIN_REASON_LENGTH
-                || reason.length() > MAX_REASON_LENGTH) {
+                || reason.trim().length() < MIN_REASON_LENGTH
+                || reason.trim().length() > MAX_REASON_LENGTH) {
             throw invalidArgument("调整原因应为 5～500 个字符");
         }
     }
@@ -216,7 +229,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     }
 
     private Map<Long, UserEntity> loadTargetUsers(Set<Long> userIds) {
-        List<UserEntity> users = userMapper.selectAssignmentUsersByIds(userIds);
+        List<UserEntity> users =
+                userMapper.selectAssignmentUsersByIdsForUpdate(userIds);
         Map<Long, UserEntity> userMap = users.stream()
                 .collect(Collectors.toMap(UserEntity::getId, user -> user));
 
@@ -363,7 +377,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                         + "；参与成员 "
                         + command.participantIds().size()
                         + " 人；原因："
-                        + command.reason());
+                        + command.reason().trim());
         history.setCreatedAt(Instant.now());
         if (statusHistoryMapper.insert(history) != 1) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
@@ -382,6 +396,25 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
         UserEntity owner = userMapper.selectById(ownerId);
         return owner == null ? "未知用户" : owner.getDisplayName();
+    }
+
+    private List<Map<String, Object>> existingMemberSnapshot(
+            List<RequestMemberEntity> members) {
+        return members.stream()
+                .map(member -> Map.<String, Object>of(
+                        "userId", member.getUserId(),
+                        "memberType", member.getMemberType()))
+                .toList();
+    }
+
+    private List<Map<String, Object>> desiredMemberSnapshot(
+            Map<Long, RequestMemberType> desiredTypes) {
+        return desiredTypes.entrySet()
+                .stream()
+                .map(entry -> Map.<String, Object>of(
+                        "userId", entry.getKey(),
+                        "memberType", entry.getValue()))
+                .toList();
     }
 
     private RequestAssignmentVO buildAssignmentVO(

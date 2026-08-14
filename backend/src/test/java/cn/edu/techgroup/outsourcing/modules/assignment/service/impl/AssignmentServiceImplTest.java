@@ -22,6 +22,7 @@ import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntit
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
 import cn.edu.techgroup.outsourcing.modules.notification.enums.NotificationType;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
@@ -57,6 +58,8 @@ class AssignmentServiceImplTest {
     private StatusHistoryMapper statusHistoryMapper;
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
+    @Mock
+    private AuditRecorder auditRecorder;
 
     private AssignmentServiceImpl assignmentService;
 
@@ -67,7 +70,8 @@ class AssignmentServiceImplTest {
                 requestMemberMapper,
                 userMapper,
                 statusHistoryMapper,
-                notificationEventPublisher);
+                notificationEventPublisher,
+                auditRecorder);
     }
 
     @Test
@@ -83,7 +87,7 @@ class AssignmentServiceImplTest {
 
         when(requestMapper.selectByIdForUpdate(REQUEST_ID))
                 .thenReturn(request(RequestStatus.PENDING_ASSIGNMENT, 0));
-        when(userMapper.selectAssignmentUsersByIds(anyCollection()))
+        when(userMapper.selectAssignmentUsersByIdsForUpdate(anyCollection()))
                 .thenReturn(List.of(
                         user(2L, UserRole.MEMBER, UserStatus.ACTIVE),
                         user(3L, UserRole.MEMBER, UserStatus.ACTIVE)));
@@ -126,7 +130,7 @@ class AssignmentServiceImplTest {
                 RequestMemberType.OWNER);
         when(requestMapper.selectByIdForUpdate(REQUEST_ID))
                 .thenReturn(request(RequestStatus.IN_PROGRESS, 3));
-        when(userMapper.selectAssignmentUsersByIds(anyCollection()))
+        when(userMapper.selectAssignmentUsersByIdsForUpdate(anyCollection()))
                 .thenReturn(List.of(
                         user(2L, UserRole.MEMBER, UserStatus.ACTIVE)));
         when(requestMemberMapper.selectByRequestId(REQUEST_ID))
@@ -161,7 +165,7 @@ class AssignmentServiceImplTest {
 
         when(requestMapper.selectByIdForUpdate(REQUEST_ID))
                 .thenReturn(request(RequestStatus.IN_PROGRESS, 1));
-        when(userMapper.selectAssignmentUsersByIds(anyCollection()))
+        when(userMapper.selectAssignmentUsersByIdsForUpdate(anyCollection()))
                 .thenReturn(List.of(
                         user(3L, UserRole.MEMBER, UserStatus.ACTIVE)));
         when(requestMemberMapper.selectByRequestId(REQUEST_ID))
@@ -247,7 +251,7 @@ class AssignmentServiceImplTest {
     void rejectsDisabledTargetUser() {
         when(requestMapper.selectByIdForUpdate(REQUEST_ID))
                 .thenReturn(request(RequestStatus.PENDING_ASSIGNMENT, 0));
-        when(userMapper.selectAssignmentUsersByIds(anyCollection()))
+        when(userMapper.selectAssignmentUsersByIdsForUpdate(anyCollection()))
                 .thenReturn(List.of(
                         user(2L, UserRole.MEMBER, UserStatus.DISABLED)));
 
@@ -266,7 +270,7 @@ class AssignmentServiceImplTest {
     void reportsConflictWhenCompareAndSetFails() {
         when(requestMapper.selectByIdForUpdate(REQUEST_ID))
                 .thenReturn(request(RequestStatus.PENDING_ASSIGNMENT, 0));
-        when(userMapper.selectAssignmentUsersByIds(anyCollection()))
+        when(userMapper.selectAssignmentUsersByIdsForUpdate(anyCollection()))
                 .thenReturn(List.of(
                         user(2L, UserRole.MEMBER, UserStatus.ACTIVE)));
         when(requestMemberMapper.selectByRequestId(REQUEST_ID))
