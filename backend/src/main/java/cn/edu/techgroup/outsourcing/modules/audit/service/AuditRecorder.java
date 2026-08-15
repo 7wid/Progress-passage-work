@@ -4,23 +4,28 @@ import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
 import cn.edu.techgroup.outsourcing.modules.audit.entity.AuditLogEntity;
 import cn.edu.techgroup.outsourcing.modules.audit.mapper.AuditLogMapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
 public class AuditRecorder {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuditRecorder.class);
+
     private final AuditLogMapper auditLogMapper;
-    private final ObjectMapper objectMapper;
+    private final AuditDataSanitizer sanitizer;
 
     public AuditRecorder(
             AuditLogMapper auditLogMapper,
-            ObjectMapper objectMapper) {
+            AuditDataSanitizer sanitizer) {
         this.auditLogMapper = auditLogMapper;
-        this.objectMapper = objectMapper;
+        this.sanitizer = sanitizer;
     }
 
     public void record(
@@ -35,23 +40,45 @@ public class AuditRecorder {
         auditLog.setAction(action);
         auditLog.setTargetType(targetType);
         auditLog.setTargetId(targetId);
-        auditLog.setBeforeData(toJson(beforeData));
-        auditLog.setAfterData(toJson(afterData));
+        auditLog.setBeforeData(sanitizer.toSafeJson(beforeData));
+        auditLog.setAfterData(sanitizer.toSafeJson(afterData));
         auditLog.setRequestId(MDC.get("requestId"));
+        auditLog.setIpAddress(resolveRemoteAddress());
         auditLog.setCreatedAt(Instant.now());
         if (auditLogMapper.insert(auditLog) != 1) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
     }
 
-    private String toJson(Object value) {
-        if (value == null) {
+    public void recordBestEffort(
+            Long actorId,
+            String action,
+            String targetType,
+            String targetId,
+            Object beforeData,
+            Object afterData) {
+        try {
+            record(actorId, action, targetType, targetId, beforeData, afterData);
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Failed to persist audit event: action={}, targetType={}",
+                    action,
+                    targetType,
+                    exception);
+        }
+    }
+
+    private String resolveRemoteAddress() {
+        if (!(RequestContextHolder.getRequestAttributes()
+                instanceof ServletRequestAttributes attributes)) {
             return null;
         }
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        HttpServletRequest request = attributes.getRequest();
+        String address = request.getRemoteAddr();
+        if (address == null || address.isBlank()) {
+            return null;
         }
+        String trimmed = address.trim();
+        return trimmed.length() <= 64 ? trimmed : trimmed.substring(0, 64);
     }
 }

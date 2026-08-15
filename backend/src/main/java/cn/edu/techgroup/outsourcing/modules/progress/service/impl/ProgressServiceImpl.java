@@ -2,6 +2,8 @@ package cn.edu.techgroup.outsourcing.modules.progress.service.impl;
 
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntity;
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
@@ -45,18 +47,21 @@ public class ProgressServiceImpl implements ProgressService {
     private final ProgressLogMapper progressLogMapper;
     private final UserMapper userMapper;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditRecorder auditRecorder;
 
     public ProgressServiceImpl(
             RequestMapper requestMapper,
             RequestMemberMapper requestMemberMapper,
             ProgressLogMapper progressLogMapper,
             UserMapper userMapper,
-            NotificationEventPublisher notificationEventPublisher) {
+            NotificationEventPublisher notificationEventPublisher,
+            AuditRecorder auditRecorder) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.progressLogMapper = progressLogMapper;
         this.userMapper = userMapper;
         this.notificationEventPublisher = notificationEventPublisher;
+        this.auditRecorder = auditRecorder;
     }
 
     @Override
@@ -151,6 +156,17 @@ public class ProgressServiceImpl implements ProgressService {
         if (progressLogMapper.insert(log) != 1 || log.getId() == null) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
+
+        auditRecorder.record(
+                operator.id(),
+                AuditActions.PROGRESS_RECORDED,
+                "REQUEST",
+                requestId.toString(),
+                Map.of("progress", request.getProgress()),
+                Map.of(
+                        "progressLogId", log.getId().toString(),
+                        "progress", command.progress(),
+                        "visibleToRequester", command.visibleToRequester()));
 
         if (Boolean.TRUE.equals(command.visibleToRequester())) {
             notificationEventPublisher.publish(

@@ -54,6 +54,8 @@ async function handleLogout() {
 
         <RouterLink v-if="isAdmin" to="/admin/statistics"> 数据概览 </RouterLink>
 
+        <RouterLink v-if="isAdmin" to="/admin/audit-logs"> 审计记录 </RouterLink>
+
         <RouterLink to="/settings"> 个人设置 </RouterLink>
       </nav>
     </el-aside>

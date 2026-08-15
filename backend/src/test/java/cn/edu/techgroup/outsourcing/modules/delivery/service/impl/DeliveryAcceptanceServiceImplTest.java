@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
@@ -41,6 +42,8 @@ import cn.edu.techgroup.outsourcing.modules.user.entity.UserEntity;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +73,8 @@ class DeliveryAcceptanceServiceImplTest {
     private AttachmentService attachmentService;
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
+    @Mock
+    private AuditRecorder auditRecorder;
 
     private DeliveryAcceptanceServiceImpl service;
 
@@ -83,7 +88,8 @@ class DeliveryAcceptanceServiceImplTest {
                 statusHistoryMapper,
                 userMapper,
                 attachmentService,
-                notificationEventPublisher);
+                notificationEventPublisher,
+                auditRecorder);
     }
 
     @Test
@@ -175,6 +181,13 @@ class DeliveryAcceptanceServiceImplTest {
         verify(notificationEventPublisher).publish(argThat(event ->
                 event.type() == NotificationType.DELIVERY_SUBMITTED
                         && event.recipientIds().equals(List.of(1L))));
+        verify(auditRecorder).record(
+                eq(2L),
+                eq(AuditActions.DELIVERY_SUBMITTED),
+                eq("REQUEST"),
+                eq(REQUEST_ID.toString()),
+                any(),
+                any());
     }
 
     @Test
@@ -319,6 +332,13 @@ class DeliveryAcceptanceServiceImplTest {
         verify(notificationEventPublisher).publish(argThat(event ->
                 event.type() == NotificationType.ACCEPTANCE_COMPLETED
                         && event.recipientIds().equals(List.of(2L, 3L))));
+        verify(auditRecorder).record(
+                eq(1L),
+                eq(AuditActions.ACCEPTANCE_RECORDED),
+                eq("REQUEST"),
+                eq(REQUEST_ID.toString()),
+                any(),
+                any());
     }
 
     @Test

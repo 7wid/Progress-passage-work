@@ -2,6 +2,8 @@ package cn.edu.techgroup.outsourcing.modules.evaluation.service.impl;
 
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.evaluation.dto.ConfirmRejectionCommand;
 import cn.edu.techgroup.outsourcing.modules.evaluation.dto.CreateEvaluationCommand;
 import cn.edu.techgroup.outsourcing.modules.evaluation.entity.EvaluationEntity;
@@ -45,18 +47,21 @@ public class EvaluationServiceImpl implements EvaluationService {
     private final StatusHistoryMapper statusHistoryMapper;
     private final UserMapper userMapper;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditRecorder auditRecorder;
 
     public EvaluationServiceImpl(
             EvaluationMapper evaluationMapper,
             RequestMapper requestMapper,
             StatusHistoryMapper statusHistoryMapper,
             UserMapper userMapper,
-            NotificationEventPublisher notificationEventPublisher) {
+            NotificationEventPublisher notificationEventPublisher,
+            AuditRecorder auditRecorder) {
         this.evaluationMapper = evaluationMapper;
         this.requestMapper = requestMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.userMapper = userMapper;
         this.notificationEventPublisher = notificationEventPublisher;
+        this.auditRecorder = auditRecorder;
     }
 
     @Override
@@ -167,6 +172,19 @@ public class EvaluationServiceImpl implements EvaluationService {
                 command.conclusion() == EvaluationConclusion.NOT_FEASIBLE
                         && operator.role() == UserRole.MEMBER;
 
+        auditRecorder.record(
+                operator.id(),
+                AuditActions.EVALUATION_CREATED,
+                "REQUEST",
+                requestId.toString(),
+                Map.of("status", oldStatus.name()),
+                Map.of(
+                        "evaluationId", evaluation.getId().toString(),
+                        "conclusion", command.conclusion().name(),
+                        "status", targetStatus.name(),
+                        "evaluationVersion", evaluationVersion,
+                        "adminConfirmationRequired", confirmationRequired));
+
         publishEvaluationEvent(
                 request,
                 command.conclusion(),
@@ -253,6 +271,16 @@ public class EvaluationServiceImpl implements EvaluationService {
                 RequestStatus.PENDING_REVIEW,
                 RequestStatus.REJECTED,
                 "管理员确认暂不承接");
+
+        auditRecorder.record(
+                operator.id(),
+                AuditActions.EVALUATION_REJECTION_CONFIRMED,
+                "REQUEST",
+                requestId.toString(),
+                Map.of("status", RequestStatus.PENDING_REVIEW.name()),
+                Map.of(
+                        "evaluationId", evaluationId.toString(),
+                        "status", RequestStatus.REJECTED.name()));
 
         notificationEventPublisher.publish(
                 NotificationEvents.evaluationCompleted(

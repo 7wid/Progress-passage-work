@@ -7,6 +7,14 @@ server:
         same-site: lax
 
 logging:
+  file:
+    name: ${APP_LOG_FILE:./logs/tech-request-backend.log}
   level:
     root: INFO
     cn.edu.techgroup.outsourcing: INFO
+  logback:
+    rollingpolicy:
+      max-file-size: 20MB
+      max-history: 30
+      total-size-cap: 2GB
+      clean-history-on-start: false

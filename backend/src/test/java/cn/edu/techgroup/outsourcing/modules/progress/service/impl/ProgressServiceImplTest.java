@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -34,6 +35,8 @@ import cn.edu.techgroup.outsourcing.modules.user.entity.UserEntity;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +60,8 @@ class ProgressServiceImplTest {
     private UserMapper userMapper;
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
+    @Mock
+    private AuditRecorder auditRecorder;
 
     private ProgressServiceImpl progressService;
 
@@ -67,7 +72,8 @@ class ProgressServiceImplTest {
                 requestMemberMapper,
                 progressLogMapper,
                 userMapper,
-                notificationEventPublisher);
+                notificationEventPublisher,
+                auditRecorder);
     }
 
     @Test
@@ -209,6 +215,13 @@ class ProgressServiceImplTest {
         verify(notificationEventPublisher).publish(argThat(event ->
                 event.type() == NotificationType.PROGRESS_UPDATED
                         && event.recipientIds().equals(List.of(1L))));
+        verify(auditRecorder).record(
+                eq(2L),
+                eq(AuditActions.PROGRESS_RECORDED),
+                eq("REQUEST"),
+                eq(REQUEST_ID.toString()),
+                any(),
+                any());
         assertEquals("测试用户", result.log().authorName());
     }
 

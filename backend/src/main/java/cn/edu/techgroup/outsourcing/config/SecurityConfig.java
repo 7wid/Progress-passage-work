@@ -3,8 +3,12 @@ package cn.edu.techgroup.outsourcing.config;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 import cn.edu.techgroup.outsourcing.security.ActiveSessionValidationFilter;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.security.LoginUser;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -31,7 +35,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             SecurityContextRepository securityContextRepository,
-            ActiveSessionValidationFilter activeSessionValidationFilter)
+            ActiveSessionValidationFilter activeSessionValidationFilter,
+            AuditRecorder auditRecorder)
             throws Exception {
         CookieCsrfTokenRepository csrfRepository =
                 CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -73,10 +78,19 @@ public class SecurityConfig {
                         .logoutUrl("/api/v1/auth/logout")
                         .invalidateHttpSession(true)
                         .deleteCookies("SESSION")
-                        .logoutSuccessHandler(
-                                (request, response, authentication) ->
-                                        response.setStatus(
-                                                HttpServletResponse.SC_NO_CONTENT)))
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            if (authentication != null
+                                    && authentication.getPrincipal() instanceof LoginUser user) {
+                                auditRecorder.recordBestEffort(
+                                        user.id(),
+                                        AuditActions.AUTH_LOGOUT,
+                                        "USER",
+                                        user.id().toString(),
+                                        null,
+                                        Map.of("outcome", "SUCCESS"));
+                            }
+                            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                        }))
                 .addFilterBefore(
                         activeSessionValidationFilter,
                         AuthorizationFilter.class);

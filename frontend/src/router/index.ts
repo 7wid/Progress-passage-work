@@ -9,6 +9,7 @@ import WorkspaceView from '@/views/workspace/WorkspaceView.vue'
 import MemberManagementView from '@/views/admin/MemberManagementView.vue'
 import CategoryManagementView from '@/views/admin/CategoryManagementView.vue'
 import StatisticsView from '@/views/admin/StatisticsView.vue'
+import AuditLogView from '@/views/admin/AuditLogView.vue'
 import SettingsView from '@/views/settings/SettingsView.vue'
 import NotificationCenterView from '@/views/notifications/NotificationCenterView.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -53,6 +54,12 @@ const router = createRouter({
           path: 'admin/statistics',
           name: 'admin-statistics',
           component: StatisticsView,
+          meta: { roles: ['ADMIN'] },
+        },
+        {
+          path: 'admin/audit-logs',
+          name: 'admin-audit-logs',
+          component: AuditLogView,
           meta: { roles: ['ADMIN'] },
         },
         {

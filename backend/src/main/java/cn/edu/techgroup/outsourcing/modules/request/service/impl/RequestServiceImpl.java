@@ -3,6 +3,8 @@ package cn.edu.techgroup.outsourcing.modules.request.service.impl;
 import cn.edu.techgroup.outsourcing.common.api.PageResponse;
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.category.entity.CategoryEntity;
 import cn.edu.techgroup.outsourcing.modules.category.mapper.CategoryMapper;
@@ -56,6 +58,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestMemberMapper requestMemberMapper;
     private final RequestNumberGenerator requestNumberGenerator;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditRecorder auditRecorder;
 
     public RequestServiceImpl(
             RequestMapper requestMapper,
@@ -64,7 +67,8 @@ public class RequestServiceImpl implements RequestService {
             RequestNumberGenerator requestNumberGenerator,
             RequestMemberMapper requestMemberMapper,
             UserMapper userMapper,
-            NotificationEventPublisher notificationEventPublisher) {
+            NotificationEventPublisher notificationEventPublisher,
+            AuditRecorder auditRecorder) {
         this.requestMapper = requestMapper;
         this.categoryMapper = categoryMapper;
         this.statusHistoryMapper = statusHistoryMapper;
@@ -72,6 +76,7 @@ public class RequestServiceImpl implements RequestService {
         this.userMapper = userMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.notificationEventPublisher = notificationEventPublisher;
+        this.auditRecorder = auditRecorder;
     }
 
     @Override
@@ -156,6 +161,16 @@ public class RequestServiceImpl implements RequestService {
         if (statusHistoryMapper.insert(history) != 1) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
+
+        auditRecorder.record(
+                operator.id(),
+                AuditActions.REQUEST_SUBMITTED,
+                "REQUEST",
+                entity.getId().toString(),
+                null,
+                Map.of(
+                        "requestNo", requestNo,
+                        "status", RequestStatus.PENDING_REVIEW.name()));
 
         notificationEventPublisher.publish(
                 NotificationEvents.requestSubmitted(

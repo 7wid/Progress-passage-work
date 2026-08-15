@@ -29,5 +29,9 @@ describe('管理后台路由权限', () => {
 
     expect(router.currentRoute.value.name).toBe('admin-categories')
     expect(router.currentRoute.value.meta.roles).toEqual(['ADMIN'])
+
+    await router.push({ name: 'admin-audit-logs' })
+    expect(router.currentRoute.value.name).toBe('admin-audit-logs')
+    expect(router.currentRoute.value.meta.roles).toEqual(['ADMIN'])
   })
 })
