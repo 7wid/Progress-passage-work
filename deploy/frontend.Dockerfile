@@ -10,3 +10,4 @@ FROM nginx:1.28-alpine
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /workspace/frontend/dist /usr/share/nginx/html
 EXPOSE 80
+STOPSIGNAL SIGQUIT

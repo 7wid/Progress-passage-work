@@ -18,6 +18,7 @@ backend/src/main/resources/application-local.yml
 # Runtime data
 data/
 uploads/
+backup/
 *.log
 
 # IDE / OS
@@ -29,5 +30,6 @@ Thumbs.db
 
 # Secrets
 .env
+deploy/.env.prod
 *.pem
 *.key

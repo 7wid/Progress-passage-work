@@ -1,49 +1,92 @@
+name: tech-request-prod
+
 services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
+    init: true
     environment:
       MYSQL_DATABASE: tech_request
       MYSQL_USER: tech_request
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       TZ: UTC
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent",
+        ]
       interval: 10s
       timeout: 5s
       retries: 20
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
 
   backend:
     build:
       context: .
       dockerfile: deploy/backend.Dockerfile
     restart: unless-stopped
+    init: true
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/tech_request?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/tech_request?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
       SPRING_DATASOURCE_USERNAME: tech_request
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-      APP_WEB_ORIGINS_0: ${APP_WEB_ORIGIN}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      APP_WEB_ORIGINS_0: ${APP_WEB_ORIGIN:?APP_WEB_ORIGIN is required}
       APP_UPLOAD_DIR: /app/data/uploads
+      APP_LOG_FILE: /app/logs/tech-request-backend.log
+      APP_BOOTSTRAP_ADMIN_ENABLED: ${APP_BOOTSTRAP_ADMIN_ENABLED:-false}
+      APP_BOOTSTRAP_ADMIN_ACCOUNT: ${APP_BOOTSTRAP_ADMIN_ACCOUNT:-admin}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-}
+      APP_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:-系统管理员}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai"
     depends_on:
       mysql:
         condition: service_healthy
+    expose:
+      - "8080"
     volumes:
       - upload_data:/app/data/uploads
+      - log_data:/app/logs
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+    stop_grace_period: 35s
+    security_opt:
+      - no-new-privileges:true
 
   frontend:
     build:
       context: .
       dockerfile: deploy/frontend.Dockerfile
     restart: unless-stopped
+    init: true
     ports:
-      - "80:80"
+      - "${HTTP_PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   mysql_data:
   upload_data:
+  log_data:

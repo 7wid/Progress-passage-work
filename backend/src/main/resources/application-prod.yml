@@ -1,10 +1,15 @@
 server:
+  shutdown: graceful
   servlet:
     session:
       cookie:
-        secure: true
+        secure: ${SESSION_COOKIE_SECURE:true}
         http-only: true
         same-site: lax
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 logging:
   file:
@@ -18,3 +23,16 @@ logging:
       max-history: 30
       total-size-cap: 2GB
       clean-history-on-start: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+app:
+  bootstrap-admin:
+    enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
+    account: ${APP_BOOTSTRAP_ADMIN_ACCOUNT:admin}
+    password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+    display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:系统管理员}
