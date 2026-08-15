@@ -2,6 +2,8 @@ package cn.edu.techgroup.outsourcing.modules.delivery.service.impl;
 
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntity;
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
@@ -63,6 +65,7 @@ public class DeliveryAcceptanceServiceImpl
     private final UserMapper userMapper;
     private final AttachmentService attachmentService;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final AuditRecorder auditRecorder;
 
     public DeliveryAcceptanceServiceImpl(
             RequestMapper requestMapper,
@@ -72,7 +75,8 @@ public class DeliveryAcceptanceServiceImpl
             StatusHistoryMapper statusHistoryMapper,
             UserMapper userMapper,
             AttachmentService attachmentService,
-            NotificationEventPublisher notificationEventPublisher) {
+            NotificationEventPublisher notificationEventPublisher,
+            AuditRecorder auditRecorder) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.deliveryMapper = deliveryMapper;
@@ -81,6 +85,7 @@ public class DeliveryAcceptanceServiceImpl
         this.userMapper = userMapper;
         this.attachmentService = attachmentService;
         this.notificationEventPublisher = notificationEventPublisher;
+        this.auditRecorder = auditRecorder;
     }
 
     @Override
@@ -187,6 +192,18 @@ public class DeliveryAcceptanceServiceImpl
                 RequestStatus.PENDING_ACCEPTANCE,
                 "提交交付物，等待需求方验收");
 
+        auditRecorder.record(
+                operator.id(),
+                AuditActions.DELIVERY_SUBMITTED,
+                "REQUEST",
+                requestId.toString(),
+                Map.of("status", RequestStatus.IN_PROGRESS.name()),
+                Map.of(
+                        "deliveryId", delivery.getId().toString(),
+                        "status", RequestStatus.PENDING_ACCEPTANCE.name(),
+                        "attachmentCount", attachments.size(),
+                        "hasDeliveryUrl", command.deliveryUrl() != null));
+
         notificationEventPublisher.publish(
                 NotificationEvents.deliverySubmitted(
                         request.getId(),
@@ -262,6 +279,18 @@ public class DeliveryAcceptanceServiceImpl
                 RequestStatus.PENDING_ACCEPTANCE,
                 targetStatus,
                 reason);
+
+        auditRecorder.record(
+                operator.id(),
+                AuditActions.ACCEPTANCE_RECORDED,
+                "REQUEST",
+                requestId.toString(),
+                Map.of("status", RequestStatus.PENDING_ACCEPTANCE.name()),
+                Map.of(
+                        "acceptanceId", acceptance.getId().toString(),
+                        "deliveryId", latestDelivery.getId().toString(),
+                        "result", command.result().name(),
+                        "status", targetStatus.name()));
 
         List<Long> recipients = requestMemberMapper.selectByRequestId(requestId)
                 .stream()

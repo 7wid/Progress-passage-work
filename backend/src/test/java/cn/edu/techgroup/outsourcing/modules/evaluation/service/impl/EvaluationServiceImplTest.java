@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.BeforeAll;
 
 import cn.edu.techgroup.outsourcing.common.error.BusinessException;
 import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
 import cn.edu.techgroup.outsourcing.modules.evaluation.dto.ConfirmRejectionCommand;
 import cn.edu.techgroup.outsourcing.modules.evaluation.dto.CreateEvaluationCommand;
 import cn.edu.techgroup.outsourcing.modules.evaluation.entity.EvaluationEntity;
@@ -46,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 
 @ExtendWith(MockitoExtension.class)
 class EvaluationServiceImplTest {
@@ -73,6 +76,8 @@ static void initializeMybatisMetadata() {
 
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
+    @Mock
+    private AuditRecorder auditRecorder;
 
     private EvaluationServiceImpl evaluationService;
 
@@ -87,7 +92,8 @@ static void initializeMybatisMetadata() {
                 requestMapper,
                 statusHistoryMapper,
                 userMapper,
-                notificationEventPublisher);
+                notificationEventPublisher,
+                auditRecorder);
     }
 
     @Test
@@ -125,6 +131,13 @@ static void initializeMybatisMetadata() {
         verify(notificationEventPublisher).publish(argThat(event ->
                 event.type() == NotificationType.EVALUATION_COMPLETED
                         && event.recipientIds().equals(List.of(1L))));
+        verify(auditRecorder).record(
+                eq(2L),
+                eq(AuditActions.EVALUATION_CREATED),
+                eq("REQUEST"),
+                eq(REQUEST_ID.toString()),
+                any(),
+                any());
     }
 
     @Test

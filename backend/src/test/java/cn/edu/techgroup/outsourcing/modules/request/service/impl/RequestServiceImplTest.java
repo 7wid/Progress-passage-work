@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -33,6 +34,8 @@ import cn.edu.techgroup.outsourcing.modules.user.entity.UserEntity;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -72,6 +75,8 @@ class RequestServiceImplTest {
     private UserMapper userMapper;
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
+    @Mock
+    private AuditRecorder auditRecorder;
 
     private RequestServiceImpl requestService;
 
@@ -84,7 +89,8 @@ class RequestServiceImplTest {
                 requestNumberGenerator,
                 requestMemberMapper,
                 userMapper,
-                notificationEventPublisher);
+                notificationEventPublisher,
+                auditRecorder);
     }
 
     @Test
@@ -129,6 +135,13 @@ class RequestServiceImplTest {
                         && event.requestId().equals(100L)
                         && event.actorId().equals(1L)
                         && event.recipientIds().isEmpty()));
+        verify(auditRecorder).record(
+                eq(1L),
+                eq(AuditActions.REQUEST_SUBMITTED),
+                eq("REQUEST"),
+                eq("100"),
+                isNull(),
+                any());
     }
 
     @Test
