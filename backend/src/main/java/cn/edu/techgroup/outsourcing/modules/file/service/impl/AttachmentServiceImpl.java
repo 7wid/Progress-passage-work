@@ -309,7 +309,8 @@ public class AttachmentServiceImpl implements AttachmentService {
             return false;
         }
         if (type == AttachmentBusinessType.REQUEST) {
-            boolean statusAllowed = request.getStatus() == RequestStatus.PENDING_REVIEW
+            boolean statusAllowed = request.getStatus() == RequestStatus.DRAFT
+                    || request.getStatus() == RequestStatus.PENDING_REVIEW
                     || request.getStatus() == RequestStatus.NEED_MORE_INFO;
             return statusAllowed && (operator.role() == UserRole.ADMIN
                     || (operator.role() == UserRole.REQUESTER

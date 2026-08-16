@@ -74,7 +74,10 @@ export function getApiFieldErrors(error: unknown): Record<string, string> {
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && window.location.pathname !== '/login') {
+    if (
+      error.response?.status === 401 &&
+      !['/login', '/register'].includes(window.location.pathname)
+    ) {
       const redirect = encodeURIComponent(window.location.pathname + window.location.search)
       window.location.assign(`/login?redirect=${redirect}`)
     }

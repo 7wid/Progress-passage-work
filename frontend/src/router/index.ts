@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
 import LoginView from '@/views/auth/LoginView.vue'
+import RegisterView from '@/views/auth/RegisterView.vue'
 import DashboardView from '@/views/dashboard/DashboardView.vue'
 import RequestListView from '@/views/requests/RequestListView.vue'
 import RequestCreateView from '@/views/requests/RequestCreateView.vue'
@@ -18,6 +19,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
+    { path: '/register', name: 'register', component: RegisterView, meta: { public: true } },
     {
       path: '/',
       component: AppLayout,
@@ -28,6 +30,12 @@ const router = createRouter({
         {
           path: 'requests/new',
           name: 'request-create',
+          component: RequestCreateView,
+          meta: { roles: ['REQUESTER', 'ADMIN'] },
+        },
+        {
+          path: 'requests/:id/edit',
+          name: 'request-edit',
           component: RequestCreateView,
           meta: { roles: ['REQUESTER', 'ADMIN'] },
         },
@@ -82,7 +90,7 @@ router.beforeEach(async (to) => {
   if (!to.meta.public && !authStore.isAuthenticated) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
-  if (to.path === '/login' && authStore.isAuthenticated) {
+  if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {
     return '/dashboard'
   }
 

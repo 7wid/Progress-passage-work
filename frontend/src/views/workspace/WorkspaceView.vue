@@ -2,17 +2,22 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getRequests } from '@/api/requests'
+import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
 import { useAuthStore } from '@/stores/auth'
-import type { RequestSummary, RequestUrgency } from '@/types/request'
+import type { RequestListQuery, RequestSummary, RequestUrgency } from '@/types/request'
+
+type WorkspaceQueue =
+  | 'PENDING_REVIEW'
+  | 'PENDING_ASSIGNMENT'
+  | 'OWNER'
+  | 'PARTICIPANT'
+  | 'PENDING_ACCEPTANCE'
+  | 'OVERDUE'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
-
-type WorkspaceStatus = 'PENDING_REVIEW' | 'PENDING_ASSIGNMENT'
-
-const activeStatus = ref<WorkspaceStatus>('PENDING_REVIEW')
-
+const activeQueue = ref<WorkspaceQueue>('PENDING_REVIEW')
 const loading = ref(false)
 const errorMessage = ref('')
 const items = ref<RequestSummary[]>([])
@@ -21,25 +26,19 @@ const pageSize = 20
 const total = ref(0)
 let loadSequence = 0
 
-const urgencyMap: Record<
-  RequestUrgency,
-  {
-    label: string
-    type: 'info' | 'warning' | 'danger'
-  }
-> = {
-  NORMAL: {
-    label: '一般',
-    type: 'info',
-  },
-  HIGH: {
-    label: '较急',
-    type: 'warning',
-  },
-  URGENT: {
-    label: '紧急',
-    type: 'danger',
-  },
+const queueLabels: Record<WorkspaceQueue, string> = {
+  PENDING_REVIEW: '待评估',
+  PENDING_ASSIGNMENT: '待分配',
+  OWNER: '我负责',
+  PARTICIPANT: '我参与',
+  PENDING_ACCEPTANCE: '待验收',
+  OVERDUE: '已逾期',
+}
+
+const urgencyMap: Record<RequestUrgency, { label: string; type: 'info' | 'warning' | 'danger' }> = {
+  NORMAL: { label: '一般', type: 'info' },
+  HIGH: { label: '较急', type: 'warning' },
+  URGENT: { label: '紧急', type: 'danger' },
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
@@ -49,25 +48,36 @@ const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
 
 function formatDateTime(value: string | null): string {
   if (!value) return '—'
-
   const date = new Date(value)
-
   return Number.isNaN(date.getTime()) ? '—' : dateTimeFormatter.format(date)
 }
 
-async function loadPendingRequests() {
+function queueQuery(): RequestListQuery {
+  const base: RequestListQuery = {
+    page: page.value,
+    pageSize,
+    sort: activeQueue.value === 'OVERDUE' ? 'DEADLINE_ASC' : 'NEWEST',
+  }
+  switch (activeQueue.value) {
+    case 'PENDING_REVIEW':
+    case 'PENDING_ASSIGNMENT':
+    case 'PENDING_ACCEPTANCE':
+      return { ...base, status: activeQueue.value }
+    case 'OWNER':
+      return { ...base, assignmentType: 'OWNER', activeOnly: true }
+    case 'PARTICIPANT':
+      return { ...base, assignmentType: 'PARTICIPANT', activeOnly: true }
+    case 'OVERDUE':
+      return { ...base, activeOnly: true, overdue: true }
+  }
+}
+
+async function loadQueue() {
   const sequence = ++loadSequence
   loading.value = true
   errorMessage.value = ''
-
   try {
-    const result = await getRequests({
-      page: page.value,
-      pageSize,
-      status: activeStatus.value,
-      sort: 'DEADLINE_ASC',
-    })
-
+    const result = await getRequests(queueQuery())
     if (sequence !== loadSequence) return
     items.value = result.items
     total.value = result.total
@@ -75,11 +85,7 @@ async function loadPendingRequests() {
     if (sequence !== loadSequence) return
     items.value = []
     total.value = 0
-
-    errorMessage.value =
-      activeStatus.value === 'PENDING_REVIEW'
-        ? '待评估需求加载失败，请确认后端已经启动'
-        : '待分配需求加载失败，请确认后端已经启动'
+    errorMessage.value = `${queueLabels[activeQueue.value]}需求加载失败，请稍后重试`
   } finally {
     if (sequence === loadSequence) loading.value = false
   }
@@ -88,178 +94,80 @@ async function loadPendingRequests() {
 function openDetail(id: string) {
   void router.push({
     name: 'request-detail',
-    params: {
-      id,
-    },
-    query: {
-      from: 'workspace',
-    },
+    params: { id },
+    query: { from: 'workspace' },
   })
 }
 
 function changePage(value: number) {
   page.value = value
-
-  void loadPendingRequests()
+  void loadQueue()
 }
 
-/*
- * 监听工作台页签。
- *
- * 待评估：
- *   PENDING_REVIEW
- *
- * 待分配：
- *   PENDING_ASSIGNMENT
- *
- * 每次切换页签以后：
- *
- * 1. 页码恢复为第一页
- * 2. 根据新的 activeStatus 重新查询后端
- */
-watch(activeStatus, () => {
+watch(activeQueue, () => {
   page.value = 1
-  void loadPendingRequests()
+  void loadQueue()
 })
 
-onMounted(() => {
-  void loadPendingRequests()
-})
+onMounted(loadQueue)
 </script>
 
 <template>
   <section class="page">
-    <!-- ===================================================== -->
-    <!-- 工作台头部 -->
-    <!-- ===================================================== -->
-
     <div class="page__header">
       <div>
         <h2>技术组工作台</h2>
-
-        <span class="summary">
-          当前共有
-          {{ total }}
-          条
-          {{ activeStatus === 'PENDING_REVIEW' ? '待评估' : '待分配' }}
-          需求
-        </span>
+        <span class="summary">{{ queueLabels[activeQueue] }} {{ total }} 条</span>
       </div>
-
-      <el-button :loading="loading" @click="loadPendingRequests"> 刷新 </el-button>
+      <el-button :loading="loading" @click="loadQueue">刷新</el-button>
     </div>
 
-    <!-- ===================================================== -->
-    <!-- 工作队列切换 -->
-    <!--
-      PENDING_REVIEW
-          ↓
-      待评估
-
-      PENDING_ASSIGNMENT
-          ↓
-      待分配
-    -->
-    <!-- ===================================================== -->
-
-    <el-tabs v-model="activeStatus">
+    <el-tabs v-model="activeQueue">
       <el-tab-pane label="待评估" name="PENDING_REVIEW" />
-
       <el-tab-pane v-if="isAdmin" label="待分配" name="PENDING_ASSIGNMENT" />
+      <el-tab-pane label="我负责" name="OWNER" />
+      <el-tab-pane label="我参与" name="PARTICIPANT" />
+      <el-tab-pane label="待验收" name="PENDING_ACCEPTANCE" />
+      <el-tab-pane label="已逾期" name="OVERDUE" />
     </el-tabs>
-
-    <!-- ===================================================== -->
-    <!-- 加载错误 -->
-    <!-- ===================================================== -->
 
     <el-alert v-if="errorMessage" type="error" :closable="false" :title="errorMessage">
       <template #default>
-        <el-button link type="primary" @click="loadPendingRequests"> 重新加载 </el-button>
+        <el-button link type="primary" @click="loadQueue">重新加载</el-button>
       </template>
     </el-alert>
 
-    <!-- ===================================================== -->
-    <!-- 工作队列表格 -->
-    <!-- ===================================================== -->
-
     <el-card>
-      <el-table
-        v-loading="loading"
-        :data="items"
-        row-key="id"
-        :empty-text="activeStatus === 'PENDING_REVIEW' ? '暂无待评估需求' : '暂无待分配需求'"
-      >
-        <!-- 需求编号 -->
-
+      <el-table v-loading="loading" :data="items" row-key="id" empty-text="当前队列暂无需求">
         <el-table-column label="需求编号" width="180">
-          <template #default="{ row }">
-            {{ row.requestNo ?? '—' }}
-          </template>
+          <template #default="{ row }">{{ row.requestNo ?? '—' }}</template>
         </el-table-column>
-
-        <!-- 标题 -->
-
         <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
-
-        <!-- 分类 -->
-
         <el-table-column prop="categoryName" label="分类" width="140" />
-
-        <!-- 创建人 -->
-
         <el-table-column prop="creatorName" label="创建人" width="120" />
-
-        <!-- 紧急程度 -->
-
         <el-table-column label="紧急程度" width="100">
           <template #default="{ row }">
-            <el-tag :type="urgencyMap[row.urgency as RequestUrgency].type">
+            <el-tag v-if="row.urgency" :type="urgencyMap[row.urgency as RequestUrgency].type">
               {{ urgencyMap[row.urgency as RequestUrgency].label }}
             </el-tag>
+            <span v-else>—</span>
           </template>
         </el-table-column>
-
-        <!-- 期望日期 -->
-
-        <el-table-column prop="expectedDeadline" label="期望日期" width="120" />
-
-        <!-- 提交时间 -->
-
+        <el-table-column label="状态" width="110">
+          <template #default="{ row }"><RequestStatusTag :status="row.status" /></template>
+        </el-table-column>
+        <el-table-column label="期望日期" width="120">
+          <template #default="{ row }">{{ row.expectedDeadline ?? '—' }}</template>
+        </el-table-column>
         <el-table-column label="提交时间" width="170">
-          <template #default="{ row }">
-            {{ formatDateTime(row.submittedAt) }}
-          </template>
+          <template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template>
         </el-table-column>
-
-        <!-- ================================================= -->
-        <!-- 操作 -->
-        <!--
-          待评估：
-              查看并评估
-
-          待分配：
-              查看并分配
-        -->
-        <!-- ================================================= -->
-
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row.id)">
-              {{
-                activeStatus === 'PENDING_REVIEW'
-                  ? '查看并评估'
-                  : isAdmin
-                    ? '查看并分配'
-                    : '查看详情'
-              }}
-            </el-button>
+            <el-button link type="primary" @click="openDetail(row.id)">查看详情</el-button>
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- =================================================== -->
-      <!-- 分页 -->
-      <!-- =================================================== -->
 
       <el-pagination
         v-if="total > pageSize"
@@ -278,7 +186,6 @@ onMounted(() => {
 .summary {
   color: #6b7280;
 }
-
 .pagination {
   justify-content: flex-end;
   margin-top: 16px;

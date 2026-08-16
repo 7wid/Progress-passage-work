@@ -3,6 +3,7 @@ package cn.edu.techgroup.outsourcing.modules.assignment.mapper;
 import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import java.util.List;
+import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -39,4 +40,15 @@ public interface RequestMemberMapper
     long countByRequestIdAndUserId(
             @Param("requestId") Long requestId,
             @Param("userId") Long userId);
+
+    @Select("""
+            SELECT request_id
+            FROM request_member
+            WHERE user_id = #{userId}
+              AND member_type = #{memberType}
+            ORDER BY request_id
+            """)
+    List<Long> selectRequestIdsByUserIdAndType(
+            @Param("userId") Long userId,
+            @Param("memberType") RequestMemberType memberType);
 }

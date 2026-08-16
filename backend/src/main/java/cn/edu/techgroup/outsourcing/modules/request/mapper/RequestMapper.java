@@ -46,4 +46,43 @@ public interface RequestMapper extends BaseMapper<RequestEntity> {
             @Param("expectedStatus") String expectedStatus,
             @Param("expectedVersion") Integer expectedVersion,
             @Param("progress") Integer progress);
+
+    @Update("""
+            UPDATE tech_request
+            SET category_id = #{request.categoryId},
+                title = #{request.title},
+                background = #{request.background},
+                description = #{request.description},
+                expected_result = #{request.expectedResult},
+                expected_deadline = #{request.expectedDeadline},
+                urgency = #{request.urgency},
+                budget_amount = #{request.budgetAmount},
+                budget_description = #{request.budgetDescription},
+                technical_constraints = #{request.technicalConstraints},
+                contact_info = #{request.contactInfo},
+                version = version + 1
+            WHERE id = #{request.id}
+              AND status = #{request.status}
+              AND version = #{expectedVersion}
+            """)
+    int updateRequesterEditableFields(
+            @Param("request") RequestEntity request,
+            @Param("expectedVersion") Integer expectedVersion);
+
+    @Update("""
+            UPDATE tech_request
+            SET request_no = COALESCE(request_no, #{requestNo}),
+                status = 'PENDING_REVIEW',
+                submitted_at = COALESCE(submitted_at, #{submittedAt}),
+                version = version + 1
+            WHERE id = #{requestId}
+              AND status = #{fromStatus}
+              AND version = #{expectedVersion}
+            """)
+    int submitRequesterRequest(
+            @Param("requestId") Long requestId,
+            @Param("fromStatus") String fromStatus,
+            @Param("expectedVersion") Integer expectedVersion,
+            @Param("requestNo") String requestNo,
+            @Param("submittedAt") java.time.Instant submittedAt);
 }

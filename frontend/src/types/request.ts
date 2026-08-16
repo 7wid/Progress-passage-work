@@ -33,8 +33,15 @@ export interface CreateRequestInput {
 
 export interface CreatedRequest {
   id: string
-  requestNo: string
-  status: 'PENDING_REVIEW'
+  requestNo: string | null
+  status: 'DRAFT' | 'PENDING_REVIEW'
+}
+
+export interface RequestMutation {
+  id: string
+  requestNo: string | null
+  status: RequestStatus
+  version: number
 }
 
 export type RequestSort = 'NEWEST' | 'OLDEST' | 'DEADLINE_ASC' | 'DEADLINE_DESC'
@@ -48,19 +55,22 @@ export interface RequestListQuery {
   submittedFrom?: string
   submittedTo?: string
   sort: RequestSort
+  assignmentType?: 'OWNER' | 'PARTICIPANT'
+  activeOnly?: boolean
+  overdue?: boolean
 }
 
 export interface RequestSummary {
   id: string
   requestNo: string | null
   title: string
-  categoryId: string
+  categoryId: string | null
   categoryName: string
   creatorName: string
-  urgency: RequestUrgency
+  urgency: RequestUrgency | null
   status: RequestStatus
   progress: number
-  expectedDeadline: string
+  expectedDeadline: string | null
   submittedAt: string | null
   createdAt: string
 }
@@ -77,9 +87,9 @@ export interface RequestStatusHistory {
 export interface RequestDetail extends RequestSummary {
   version: number
   creatorId: string
-  background: string
-  description: string
-  expectedResult: string
+  background: string | null
+  description: string | null
+  expectedResult: string | null
   budgetAmount: number | null
   budgetDescription: string | null
   technicalConstraints: string | null

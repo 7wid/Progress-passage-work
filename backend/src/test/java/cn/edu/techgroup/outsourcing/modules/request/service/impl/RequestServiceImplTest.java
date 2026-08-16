@@ -154,7 +154,10 @@ class RequestServiceImplTest {
                 null,
                 LocalDate.of(2026, 8, 10),
                 LocalDate.of(2026, 8, 9),
-                RequestSort.NEWEST);
+                RequestSort.NEWEST,
+                null,
+                false,
+                false);
 
         BusinessException exception = assertThrows(
                 BusinessException.class,

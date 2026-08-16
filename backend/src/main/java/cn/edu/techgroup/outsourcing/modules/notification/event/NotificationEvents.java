@@ -21,6 +21,20 @@ public final class NotificationEvents {
                 label(requestId, requestNo) + " 已提交，请及时评估。");
     }
 
+    public static NotificationEvent requestCancelled(
+            Long requestId,
+            String requestNo,
+            Long actorId,
+            List<Long> recipients) {
+        return event(
+                NotificationType.REQUEST_CANCELLED,
+                requestId,
+                actorId,
+                recipients,
+                "需求已由需求方取消",
+                label(requestId, requestNo) + " 已取消，请查看处理记录。");
+    }
+
     public static NotificationEvent informationRequired(
             Long requestId,
             String requestNo,

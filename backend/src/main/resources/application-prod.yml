@@ -31,6 +31,9 @@ springdoc:
     enabled: false
 
 app:
+  registration:
+    enabled: ${APP_REGISTRATION_ENABLED:false}
+    email-suffix: ${APP_REGISTRATION_EMAIL_SUFFIX:}
   bootstrap-admin:
     enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
     account: ${APP_BOOTSTRAP_ADMIN_ACCOUNT:admin}

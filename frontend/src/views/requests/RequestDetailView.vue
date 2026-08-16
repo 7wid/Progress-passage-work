@@ -19,7 +19,7 @@ import type { AttachmentSnapshot } from '@/types/attachment'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmEvaluationRejection, getEvaluations } from '@/api/evaluations'
 import { getApiErrorMessage, getApiStatus } from '@/api/http'
-import { getRequestDetail } from '@/api/requests'
+import { cancelRequest, getRequestDetail } from '@/api/requests'
 import EvaluationForm from '@/components/evaluation/EvaluationForm.vue'
 import EvaluationHistory from '@/components/evaluation/EvaluationHistory.vue'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
@@ -92,6 +92,25 @@ const isTeamMember = computed(
 )
 
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+
+const isCreator = computed(
+  () => detail.value !== null && authStore.user?.id === detail.value.creatorId,
+)
+
+const canEdit = computed(
+  () =>
+    isCreator.value &&
+    (detail.value?.status === 'DRAFT' || detail.value?.status === 'NEED_MORE_INFO'),
+)
+
+const canCancel = computed(
+  () =>
+    isCreator.value &&
+    detail.value !== null &&
+    ['DRAFT', 'PENDING_REVIEW', 'NEED_MORE_INFO', 'PENDING_ASSIGNMENT'].includes(
+      detail.value.status,
+    ),
+)
 
 const canEvaluate = computed(
   () => isTeamMember.value && detail.value?.status === 'PENDING_REVIEW' && !pendingRejection.value,
@@ -322,6 +341,41 @@ async function handleAdminRequestConflict(): Promise<void> {
   await loadPage()
 }
 
+function editRequest(): void {
+  if (!detail.value) return
+  void router.push({ name: 'request-edit', params: { id: detail.value.id } })
+}
+
+async function handleCancelRequest(): Promise<void> {
+  if (!detail.value || !canCancel.value) return
+  try {
+    const result = await ElMessageBox.prompt(
+      detail.value.status === 'DRAFT' ? '请填写放弃草稿的原因' : '请填写取消需求的原因',
+      detail.value.status === 'DRAFT' ? '放弃草稿' : '取消需求',
+      {
+        type: 'warning',
+        confirmButtonText: '确认取消',
+        cancelButtonText: '返回',
+        inputValidator: (value) => {
+          const length = value.trim().length
+          return length >= 5 && length <= 500 ? true : '原因应为 5～500 个字符'
+        },
+      },
+    )
+    await cancelRequest(detail.value.id, detail.value.version, result.value)
+    ElMessage.success('需求已取消')
+    await loadPage()
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    if (getApiStatus(error) === 409) {
+      ElMessage.warning('需求状态或版本已变化，正在重新加载')
+      await loadPage()
+      return
+    }
+    ElMessage.error(getApiErrorMessage(error, '取消需求失败'))
+  }
+}
+
 async function handleConfirmRejection(evaluation: EvaluationRecord) {
   if (!detail.value || confirmingEvaluationId.value !== null) {
     return
@@ -399,7 +453,7 @@ watch(
 
       <div class="page__header">
         <div>
-          <h2>{{ detail.title }}</h2>
+          <h2>{{ detail.title || '未命名需求' }}</h2>
           <span class="request-no">
             {{ detail.requestNo ?? '尚未生成编号' }}
           </span>
@@ -407,6 +461,14 @@ watch(
 
         <div class="header-actions">
           <RequestStatusTag :status="detail.status" />
+
+          <el-button v-if="canEdit" type="primary" @click="editRequest">
+            {{ detail.status === 'NEED_MORE_INFO' ? '补充资料' : '编辑草稿' }}
+          </el-button>
+
+          <el-button v-if="canCancel" type="danger" plain @click="handleCancelRequest">
+            {{ detail.status === 'DRAFT' ? '放弃草稿' : '取消需求' }}
+          </el-button>
 
           <el-button @click="backToList"> 返回列表 </el-button>
         </div>
@@ -427,11 +489,11 @@ watch(
           </el-descriptions-item>
 
           <el-descriptions-item label="紧急程度">
-            {{ urgencyMap[detail.urgency] }}
+            {{ detail.urgency ? urgencyMap[detail.urgency] : '未选择' }}
           </el-descriptions-item>
 
           <el-descriptions-item label="期望完成日期">
-            {{ detail.expectedDeadline }}
+            {{ detail.expectedDeadline ?? '未填写' }}
           </el-descriptions-item>
 
           <el-descriptions-item label="预算金额">
@@ -466,7 +528,7 @@ watch(
 
       <el-card header="需求背景">
         <div class="text-content">
-          {{ detail.background }}
+          {{ detail.background ?? '未填写' }}
         </div>
       </el-card>
 
@@ -476,7 +538,7 @@ watch(
 
       <el-card header="具体需求">
         <div class="text-content">
-          {{ detail.description }}
+          {{ detail.description ?? '未填写' }}
         </div>
       </el-card>
 
@@ -486,7 +548,7 @@ watch(
 
       <el-card header="期望成果">
         <div class="text-content">
-          {{ detail.expectedResult }}
+          {{ detail.expectedResult ?? '未填写' }}
         </div>
       </el-card>
 
@@ -664,6 +726,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .text-content {
