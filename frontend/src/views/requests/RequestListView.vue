@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getEnabledCategories } from '@/api/categories'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
@@ -15,6 +15,7 @@ import type {
 } from '@/types/request'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const loading = ref(false)
@@ -50,6 +51,14 @@ const statusOptions: Array<{ label: string; value: RequestStatus }> = [
   { label: '已驳回', value: 'REJECTED' },
   { label: '已取消', value: 'CANCELLED' },
 ]
+
+const routeStatus =
+  typeof route.query.status === 'string' &&
+  statusOptions.some((option) => option.value === route.query.status)
+    ? (route.query.status as RequestStatus)
+    : undefined
+
+filters.status = routeStatus
 
 const sortOptions: Array<{ label: string; value: RequestSort }> = [
   { label: '最新提交', value: 'NEWEST' },
@@ -238,9 +247,10 @@ onMounted(() => {
         <el-table-column prop="creatorName" label="创建人" width="120" />
         <el-table-column label="紧急程度" width="100">
           <template #default="{ row }">
-            <el-tag :type="urgencyMap[row.urgency as RequestUrgency].type">
+            <el-tag v-if="row.urgency" :type="urgencyMap[row.urgency as RequestUrgency].type">
               {{ urgencyMap[row.urgency as RequestUrgency].label }}
             </el-tag>
+            <span v-else>—</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="110">
@@ -249,7 +259,9 @@ onMounted(() => {
         <el-table-column label="进度" width="150">
           <template #default="{ row }"><el-progress :percentage="row.progress" /></template>
         </el-table-column>
-        <el-table-column prop="expectedDeadline" label="期望日期" width="120" />
+        <el-table-column label="期望日期" width="120">
+          <template #default="{ row }">{{ row.expectedDeadline ?? '—' }}</template>
+        </el-table-column>
         <el-table-column label="提交时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template>
         </el-table-column>

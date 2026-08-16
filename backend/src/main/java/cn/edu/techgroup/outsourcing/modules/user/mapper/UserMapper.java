@@ -158,4 +158,27 @@ public interface UserMapper extends BaseMapper<UserEntity> {
             WHERE id = #{id}
             """)
     int updateAdminStatus(UserEntity user);
+
+    @Update("""
+            UPDATE sys_user
+            SET display_name = #{displayName},
+                email = #{email},
+                phone = #{phone},
+                department = #{department},
+                updated_at = #{updatedAt}
+            WHERE id = #{id}
+              AND status = 'ACTIVE'
+            """)
+    int updateSelfProfile(UserEntity user);
+
+    @Update("""
+            UPDATE sys_user
+            SET password_hash = #{passwordHash},
+                failed_login_count = 0,
+                locked_until = NULL,
+                updated_at = #{updatedAt}
+            WHERE id = #{id}
+              AND status = 'ACTIVE'
+            """)
+    int updatePasswordHash(UserEntity user);
 }

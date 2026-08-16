@@ -213,7 +213,7 @@ public class RequestServiceImpl implements RequestService {
                 RequestEntity::getSubmittedAt,
                 RequestEntity::getCreatedAt);
 
-        applyFilters(wrapper, query);
+        applyFilters(wrapper, query, viewer);
         applySort(wrapper, query);
 
         Page<RequestEntity> result = requestMapper.selectPage(
@@ -231,9 +231,13 @@ public class RequestServiceImpl implements RequestService {
                 .map(entity -> new RequestSummaryVO(
                         entity.getId().toString(),
                         entity.getRequestNo(),
-                        entity.getTitle(),
-                        entity.getCategoryId().toString(),
-                        categoryNames.getOrDefault(entity.getCategoryId(), "未知分类"),
+                        entity.getTitle() == null ? "未命名需求" : entity.getTitle(),
+                        entity.getCategoryId() == null
+                                ? null
+                                : entity.getCategoryId().toString(),
+                        entity.getCategoryId() == null
+                                ? "未选择分类"
+                                : categoryNames.getOrDefault(entity.getCategoryId(), "未知分类"),
                         creatorNames.getOrDefault(entity.getCreatorId(), "未知用户"),
                         entity.getUrgency(),
                         entity.getStatus(),
@@ -252,7 +256,8 @@ public class RequestServiceImpl implements RequestService {
 
     private void applyFilters(
             LambdaQueryWrapper<RequestEntity> wrapper,
-            RequestListQuery query) {
+            RequestListQuery query,
+            LoginUser viewer) {
         if (StringUtils.hasText(query.keyword())) {
             wrapper.and(condition -> condition
                     .like(RequestEntity::getRequestNo, query.keyword())
@@ -278,6 +283,34 @@ public class RequestServiceImpl implements RequestService {
             wrapper.lt(
                     RequestEntity::getSubmittedAt,
                     query.submittedTo().plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant());
+        }
+
+        if (query.assignmentType() != null) {
+            if (viewer.role() != UserRole.MEMBER && viewer.role() != UserRole.ADMIN) {
+                throw new BusinessException(
+                        ErrorCode.ACCESS_DENIED,
+                        "当前角色不能按任务成员关系筛选");
+            }
+            List<Long> requestIds = requestMemberMapper.selectRequestIdsByUserIdAndType(
+                    viewer.id(), query.assignmentType());
+            if (requestIds.isEmpty()) {
+                wrapper.eq(RequestEntity::getId, -1L);
+            } else {
+                wrapper.in(RequestEntity::getId, requestIds);
+            }
+        }
+
+        if (Boolean.TRUE.equals(query.activeOnly())) {
+            wrapper.notIn(
+                    RequestEntity::getStatus,
+                    RequestStatus.DRAFT,
+                    RequestStatus.COMPLETED,
+                    RequestStatus.REJECTED,
+                    RequestStatus.CANCELLED);
+        }
+
+        if (Boolean.TRUE.equals(query.overdue())) {
+            wrapper.lt(RequestEntity::getExpectedDeadline, LocalDate.now(BUSINESS_ZONE));
         }
     }
 
@@ -320,6 +353,7 @@ public class RequestServiceImpl implements RequestService {
     private Map<Long, String> loadCategoryNames(List<RequestEntity> records) {
         Set<Long> ids = records.stream()
                 .map(RequestEntity::getCategoryId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
         if (ids.isEmpty()) {
@@ -393,7 +427,9 @@ public class RequestServiceImpl implements RequestService {
                     "需求不存在");
         }
 
-        CategoryEntity category = categoryMapper.selectById(entity.getCategoryId());
+        CategoryEntity category = entity.getCategoryId() == null
+                ? null
+                : categoryMapper.selectById(entity.getCategoryId());
         UserEntity creator = userMapper.selectById(entity.getCreatorId());
 
         List<StatusHistoryEntity> histories = statusHistoryMapper.selectList(
@@ -433,8 +469,12 @@ public class RequestServiceImpl implements RequestService {
                 entity.getId().toString(),
                 entity.getRequestNo(),
                 entity.getTitle(),
-                entity.getCategoryId().toString(),
-                category == null ? "未知分类" : category.getName(),
+                entity.getCategoryId() == null
+                        ? null
+                        : entity.getCategoryId().toString(),
+                entity.getCategoryId() == null
+                        ? "未选择分类"
+                        : category == null ? "未知分类" : category.getName(),
                 entity.getCreatorId().toString(),
                 creator == null ? "未知用户" : creator.getDisplayName(),
                 entity.getBackground(),

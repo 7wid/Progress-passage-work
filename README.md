@@ -28,6 +28,7 @@
 - [需求文档](docs/需求文档.md)
 - [项目流程书](docs/项目流程书.md)
 - [项目开发规范](docs/项目开发规范.md)
+- [M6 测试与验收清单](docs/M6测试与验收清单.md)
 
 ## 环境要求
 
@@ -203,6 +204,8 @@ Remove-Variable randomBytes
 | `APP_WEB_ORIGIN` | 是 | 浏览器实际访问源，例如 `https://requests.example.edu.cn`，不要带路径 |
 | `HTTP_PORT` | 否 | 宿主机 HTTP 端口，默认 `80` |
 | `SESSION_COOKIE_SECURE` | 是 | 正式 HTTPS 环境必须为 `true` |
+| `APP_REGISTRATION_ENABLED` | 否 | 是否开放需求方自助注册；生产默认关闭 |
+| `APP_REGISTRATION_EMAIL_SUFFIX` | 否 | 可限制注册邮箱后缀，例如 `@example.edu.cn` |
 | `APP_BOOTSTRAP_ADMIN_ENABLED` | 首次启动 | 第一次启动设为 `true`，完成初始化后改为 `false` |
 | `APP_BOOTSTRAP_ADMIN_ACCOUNT` | 首次启动 | 初始管理员账号，默认 `admin` |
 | `APP_BOOTSTRAP_ADMIN_PASSWORD` | 首次启动 | 12～72 字符，含字母和数字，UTF-8 不超过 72 字节 |

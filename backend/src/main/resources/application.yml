@@ -61,3 +61,6 @@ app:
   max-file-size-bytes: 20971520
   max-file-count: 5
   pending-attachment-retention: 24h
+  registration:
+    enabled: true
+    email-suffix: ""

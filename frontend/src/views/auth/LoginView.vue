@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getRegistrationStatus } from '@/api/auth'
 import { getLoginErrorMessage } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 
@@ -9,6 +10,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const loading = ref(false)
+const registrationEnabled = ref(false)
 const form = reactive({ account: '', password: '' })
 
 async function submit() {
@@ -23,6 +25,14 @@ async function submit() {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  try {
+    registrationEnabled.value = (await getRegistrationStatus()).enabled
+  } catch {
+    registrationEnabled.value = false
+  }
+})
 </script>
 
 <template>
@@ -49,6 +59,13 @@ async function submit() {
         >
           登录
         </el-button>
+        <el-button
+          v-if="registrationEnabled"
+          class="login-card__register"
+          @click="router.push('/register')"
+        >
+          注册需求方账号
+        </el-button>
       </el-form>
     </el-card>
   </main>
@@ -60,14 +77,20 @@ async function submit() {
   min-height: 100vh;
   place-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, #eef5ff, #f8fafc);
+  background: #eef1f5;
 }
 
 .login-card {
   width: min(420px, 100%);
 }
 
-.login-card__submit {
+.login-card__submit,
+.login-card__register {
   width: 100%;
+  margin-left: 0;
+}
+
+.login-card__register {
+  margin-top: 12px;
 }
 </style>

@@ -63,6 +63,14 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/v1/auth/login")
                         .permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/users/registration")
+                        .permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/users/register")
+                        .permitAll()
                         .anyRequest()
                         .authenticated())
                 .exceptionHandling(exceptions -> exceptions

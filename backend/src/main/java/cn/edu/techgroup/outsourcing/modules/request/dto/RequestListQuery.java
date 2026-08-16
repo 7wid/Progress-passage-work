@@ -2,6 +2,7 @@ package cn.edu.techgroup.outsourcing.modules.request.dto;
 
 import cn.edu.techgroup.outsourcing.modules.request.enums.RequestSort;
 import cn.edu.techgroup.outsourcing.modules.request.enums.RequestStatus;
+import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
@@ -32,12 +33,20 @@ public record RequestListQuery(
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate submittedTo,
 
-        RequestSort sort) {
+        RequestSort sort,
+
+        RequestMemberType assignmentType,
+
+        Boolean activeOnly,
+
+        Boolean overdue) {
 
     public RequestListQuery {
         page = page == null ? 1 : page;
         pageSize = pageSize == null ? 20 : pageSize;
         sort = sort == null ? RequestSort.NEWEST : sort;
+        activeOnly = Boolean.TRUE.equals(activeOnly);
+        overdue = Boolean.TRUE.equals(overdue);
 
         if (keyword != null) {
             keyword = keyword.trim();

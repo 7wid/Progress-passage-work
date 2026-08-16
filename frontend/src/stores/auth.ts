@@ -32,5 +32,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, initialized, isAuthenticated, signIn, signOut, loadCurrentUser }
+  function updateDisplayName(displayName: string) {
+    if (user.value) {
+      user.value = { ...user.value, displayName }
+    }
+  }
+
+  return {
+    user,
+    initialized,
+    isAuthenticated,
+    signIn,
+    signOut,
+    loadCurrentUser,
+    updateDisplayName,
+  }
 })
