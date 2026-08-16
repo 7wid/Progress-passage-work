@@ -1,5 +1,7 @@
 # 计算机技术组外包需求管理系统
 
+[![CI](https://github.com/7wid/Progress-passage-work/actions/workflows/ci.yml/badge.svg)](https://github.com/7wid/Progress-passage-work/actions/workflows/ci.yml)
+
 面向校内需求方、计算机技术组成员和管理员的需求协作平台，覆盖需求提交、技术评估、任务分配、进度记录、附件、交付验收、站内通知、管理后台、统计与审计。
 
 ## 技术栈
@@ -113,6 +115,40 @@ Set-Location ..
 git diff --check
 git status --short
 ```
+
+## GitHub 自动检查
+
+仓库包含 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)。不需要数据库密码或其他 GitHub Secret，推送代码后 GitHub Actions 会自动并行执行：
+
+- `Backend / test`：JDK 21、Maven Wrapper、编译和全部后端测试。
+- `Frontend / quality`：Node.js 22、pnpm 10、类型检查、ESLint、单元测试和生产构建。
+- `Configuration / validate`：开发和生产 Docker Compose 配置解析。
+
+触发条件：
+
+- 向任意分支 `push`。
+- 创建或更新目标为 `main` 的 Pull Request。
+- 在 GitHub 的 **Actions → CI → Run workflow** 手动运行。
+
+第一次启用流程：
+
+1. 提交并推送 `.github/workflows/ci.yml`。
+2. 打开仓库的 **Actions** 页面，进入最新的 `CI` 运行记录。
+3. 三个检查都显示绿色后再创建或合并 Pull Request。
+4. 若 Actions 被仓库禁用，先在 **Actions** 页面确认启用仓库工作流。
+
+建议保护 `main`，防止红灯代码被合并：
+
+1. 打开 **Settings → Rules → Rulesets**（旧界面为 **Branches → Branch protection rules**）。
+2. 新建针对 `main` 的 branch ruleset。
+3. 开启 **Require a pull request before merging**。
+4. 开启 **Require status checks to pass**，选择：
+   - `Backend / test`
+   - `Frontend / quality`
+   - `Configuration / validate`
+5. 建议同时禁止 force push、禁止删除 `main`，并要求分支在合并前保持最新。
+
+这里的“静态检查”主要是 TypeScript、ESLint、Java 编译和测试，不等同于安全漏洞扫描。若仓库公开，或账号已启用 GitHub Code Security，可在 **Settings → Security → Advanced Security → CodeQL analysis → Set up → Default** 开启 CodeQL，选择 Java 和 JavaScript/TypeScript。不要同时再添加一套重复的 CodeQL advanced workflow。
 
 ## Docker 生产部署
 
