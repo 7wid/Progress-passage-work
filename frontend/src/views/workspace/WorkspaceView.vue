@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { ArrowRight, ListChecks, RefreshCw } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
@@ -33,6 +34,15 @@ const queueLabels: Record<WorkspaceQueue, string> = {
   PARTICIPANT: '我参与',
   PENDING_ACCEPTANCE: '待验收',
   OVERDUE: '已逾期',
+}
+
+const queueTones: Record<WorkspaceQueue, 'blue' | 'green' | 'orange' | 'purple' | 'red'> = {
+  PENDING_REVIEW: 'blue',
+  PENDING_ASSIGNMENT: 'orange',
+  OWNER: 'green',
+  PARTICIPANT: 'purple',
+  PENDING_ACCEPTANCE: 'blue',
+  OVERDUE: 'red',
 }
 
 const urgencyMap: Record<RequestUrgency, { label: string; type: 'info' | 'warning' | 'danger' }> = {
@@ -116,13 +126,16 @@ onMounted(loadQueue)
   <section class="page">
     <div class="page__header">
       <div>
-        <h2>技术组工作台</h2>
-        <span class="summary">{{ queueLabels[activeQueue] }} {{ total }} 条</span>
+        <h1>技术组工作台</h1>
+        <p>集中处理评估、分配、执行与验收队列。</p>
       </div>
-      <el-button :loading="loading" @click="loadQueue">刷新</el-button>
+      <el-button :loading="loading" @click="loadQueue">
+        <RefreshCw :size="17" aria-hidden="true" />
+        刷新队列
+      </el-button>
     </div>
 
-    <el-tabs v-model="activeQueue">
+    <el-tabs v-model="activeQueue" class="queue-tabs">
       <el-tab-pane label="待评估" name="PENDING_REVIEW" />
       <el-tab-pane v-if="isAdmin" label="待分配" name="PENDING_ASSIGNMENT" />
       <el-tab-pane label="我负责" name="OWNER" />
@@ -137,8 +150,24 @@ onMounted(loadQueue)
       </template>
     </el-alert>
 
-    <el-card>
-      <el-table v-loading="loading" :data="items" row-key="id" empty-text="当前队列暂无需求">
+    <el-card class="queue-card">
+      <template #header>
+        <div class="queue-heading" :class="`queue-heading--${queueTones[activeQueue]}`">
+          <div class="queue-heading__title">
+            <span class="queue-heading__icon" aria-hidden="true"><ListChecks :size="18" /></span>
+            <strong>{{ queueLabels[activeQueue] }}</strong>
+          </div>
+          <span class="queue-heading__count">共 {{ total }} 条</span>
+        </div>
+      </template>
+      <el-table
+        v-loading="loading"
+        :data="items"
+        row-key="id"
+        empty-text="当前队列暂无需求"
+        class="queue-table"
+        @row-click="(row: RequestSummary) => openDetail(row.id)"
+      >
         <el-table-column label="需求编号" width="180">
           <template #default="{ row }">{{ row.requestNo ?? '—' }}</template>
         </el-table-column>
@@ -164,7 +193,10 @@ onMounted(loadQueue)
         </el-table-column>
         <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row.id)">查看详情</el-button>
+            <el-button link type="primary" @click.stop="openDetail(row.id)">
+              查看详情
+              <ArrowRight :size="15" aria-hidden="true" />
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -183,11 +215,101 @@ onMounted(loadQueue)
 </template>
 
 <style scoped>
-.summary {
-  color: #6b7280;
+.page__header :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
+
+.queue-tabs {
+  padding: 0 4px;
+}
+
+.queue-card :deep(.el-card__body) {
+  padding: 0 0 16px;
+}
+
+.queue-heading {
+  --queue-color: var(--color-primary);
+  --queue-soft: var(--color-primary-soft);
+  --queue-border: var(--color-primary-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.queue-heading--green {
+  --queue-color: var(--color-success);
+  --queue-soft: #ecfdf5;
+  --queue-border: #a7f3d0;
+}
+
+.queue-heading--orange {
+  --queue-color: var(--color-warning);
+  --queue-soft: #fff7ed;
+  --queue-border: #fed7aa;
+}
+
+.queue-heading--purple {
+  --queue-color: var(--color-purple);
+  --queue-soft: #f5f3ff;
+  --queue-border: #ddd6fe;
+}
+
+.queue-heading--red {
+  --queue-color: var(--color-danger);
+  --queue-soft: #fef2f2;
+  --queue-border: #fecaca;
+}
+
+.queue-heading__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.queue-heading__icon {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  color: var(--queue-color);
+  background: var(--queue-soft);
+  border-radius: var(--radius-md);
+}
+
+.queue-heading strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.queue-heading__count {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  color: var(--queue-color);
+  background: var(--queue-soft);
+  border: 1px solid var(--queue-border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.queue-table :deep(.el-table__row) {
+  cursor: pointer;
+}
+
+.queue-table :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .pagination {
   justify-content: flex-end;
-  margin-top: 16px;
+  margin: 16px 18px 0;
 }
 </style>

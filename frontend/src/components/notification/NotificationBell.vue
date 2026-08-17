@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
+import { Bell } from '@lucide/vue'
 import { useNotificationStore } from '@/stores/notifications'
 
 const notificationStore = useNotificationStore()
@@ -62,29 +63,42 @@ onUnmounted(() => {
       :max="99"
       :hidden="!notificationStore.hasUnread"
     >
-      <span class="notification-trigger">通知</span>
+      <span class="notification-trigger" title="通知中心">
+        <Bell :size="19" :stroke-width="1.8" aria-hidden="true" />
+      </span>
     </el-badge>
   </RouterLink>
 </template>
 
 <style scoped>
 .notification-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  color: #409eff;
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
 }
 
 .notification-link:hover,
 .notification-link:focus-visible {
-  background: #ecf5ff;
-  outline: none;
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
 }
 
 .notification-trigger {
-  display: inline-block;
-  line-height: 24px;
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+}
+
+.notification-link :deep(.el-badge__content) {
+  border: 2px solid var(--color-surface);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { ArrowLeft, Save, Send } from '@lucide/vue'
 import { getEnabledCategories } from '@/api/categories'
 import { getApiErrorMessage, getApiStatus } from '@/api/http'
 import {
@@ -242,10 +243,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 <template>
   <section class="page">
     <div class="page__header">
-      <h2>{{ pageTitle }}</h2>
+      <div>
+        <h1>{{ pageTitle }}</h1>
+        <p>说明背景、目标与约束，帮助技术组快速完成评估。</p>
+      </div>
     </div>
 
-    <el-card v-loading="initialLoading">
+    <el-card v-loading="initialLoading" class="request-form-card">
       <el-form
         ref="formRef"
         :model="form"
@@ -253,6 +257,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
         label-position="top"
         @submit.prevent="handleSubmit"
       >
+        <div class="form-section-heading">
+          <span>01</span>
+          <div>
+            <strong>基础信息</strong>
+            <small>用于分类、排期与优先级判断</small>
+          </div>
+        </div>
         <div class="form-grid">
           <el-form-item label="需求标题" prop="title">
             <el-input v-model="form.title" maxlength="80" show-word-limit />
@@ -293,6 +304,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
           </el-form-item>
         </div>
 
+        <div class="form-section-heading">
+          <span>02</span>
+          <div>
+            <strong>需求说明</strong>
+            <small>完整描述问题背景、具体需求和期望成果</small>
+          </div>
+        </div>
         <el-form-item label="需求背景" prop="background">
           <el-input
             v-model="form.background"
@@ -323,6 +341,13 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
           />
         </el-form-item>
 
+        <div class="form-section-heading">
+          <span>03</span>
+          <div>
+            <strong>约束与联系</strong>
+            <small>补充预算、技术限制和有效联系方式</small>
+          </div>
+        </div>
         <div class="form-grid">
           <el-form-item label="预算金额（可选）">
             <el-input
@@ -367,9 +392,11 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 
         <div class="form-actions">
           <el-button @click="router.push(isEditing ? `/requests/${editingId}` : '/requests')">
+            <ArrowLeft :size="16" aria-hidden="true" />
             返回
           </el-button>
           <el-button :loading="saving" :disabled="initialLoading" @click="handleSave">
+            <Save :size="16" aria-hidden="true" />
             {{ isEditing ? '保存修改' : '保存草稿' }}
           </el-button>
           <el-button
@@ -378,6 +405,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
             :loading="submitting"
             :disabled="initialLoading"
           >
+            <Send :size="16" aria-hidden="true" />
             {{ requestStatus === 'NEED_MORE_INFO' ? '重新提交' : '提交需求' }}
           </el-button>
         </div>
@@ -387,6 +415,58 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 </template>
 
 <style scoped>
+.request-form-card {
+  width: min(1060px, 100%);
+}
+
+.request-form-card :deep(.el-card__body) {
+  padding: 26px 28px;
+}
+
+.form-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 18px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.form-section-heading:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.form-section-heading > span {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  color: var(--color-primary-strong);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.form-section-heading > div {
+  display: grid;
+  gap: 1px;
+}
+
+.form-section-heading strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.form-section-heading small {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -401,15 +481,33 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.form-actions :deep(.el-button) {
+  margin: 0;
+}
+
+.form-actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 @media (max-width: 768px) {
+  .request-form-card :deep(.el-card__body) {
+    padding: 20px 16px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
 
   .form-actions {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 </style>

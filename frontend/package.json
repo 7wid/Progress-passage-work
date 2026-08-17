@@ -20,6 +20,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@lucide/vue": "^1.31.0",
     "axios": "^1.11.0",
     "element-plus": "^2.10.5",
     "pinia": "^3.0.3",
