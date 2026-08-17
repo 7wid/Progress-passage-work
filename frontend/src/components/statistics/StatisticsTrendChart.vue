@@ -96,7 +96,7 @@ function shortDate(value: string): string {
   display: grid;
   min-height: 260px;
   place-items: center;
-  color: #909399;
+  color: var(--color-text-tertiary);
 }
 .chart-scroll {
   overflow-x: auto;
@@ -107,27 +107,27 @@ function shortDate(value: string): string {
   width: 100%;
 }
 .axis {
-  stroke: #cbd5e1;
+  stroke: var(--color-border);
   stroke-width: 1;
 }
 .grid-line {
-  stroke: #e5e7eb;
+  stroke: var(--color-border-subtle);
   stroke-dasharray: 5 5;
 }
 .axis-label {
-  fill: #6b7280;
+  fill: var(--color-text-tertiary);
   font-size: 12px;
 }
 .trend-line {
   fill: none;
-  stroke: #409eff;
+  stroke: var(--color-primary);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 3;
 }
 .trend-point {
-  fill: #fff;
-  stroke: #409eff;
+  fill: var(--color-surface);
+  stroke: var(--color-primary);
   stroke-width: 2;
 }
 </style>

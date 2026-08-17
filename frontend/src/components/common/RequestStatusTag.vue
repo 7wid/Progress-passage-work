@@ -4,7 +4,10 @@ import type { RequestStatus } from '@/types/request'
 
 const props = defineProps<{ status: RequestStatus }>()
 
-const statusMap: Record<RequestStatus, { label: string; type: 'info' | 'primary' | 'warning' | 'success' | 'danger' }> = {
+const statusMap: Record<
+  RequestStatus,
+  { label: string; type: 'info' | 'primary' | 'warning' | 'success' | 'danger' }
+> = {
   DRAFT: { label: '草稿', type: 'info' },
   PENDING_REVIEW: { label: '待评估', type: 'primary' },
   NEED_MORE_INFO: { label: '待补充', type: 'warning' },

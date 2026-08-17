@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { BadgeCheck, FilePlus2, Gauge, RotateCcw, Search, Timer } from '@lucide/vue'
 import { getAdminCategories } from '@/api/adminCategories'
 import { getApiErrorMessage } from '@/api/http'
 import { getAdminStatistics } from '@/api/statistics'
@@ -130,7 +131,7 @@ onMounted(() => {
   <section class="page">
     <div class="page__header">
       <div>
-        <h2>数据概览</h2>
+        <h1>数据概览</h1>
         <span class="summary">按提交日期统计需求处理情况与首次评估响应效率</span>
       </div>
       <span v-if="dashboard" class="generated-at">
@@ -164,8 +165,14 @@ onMounted(() => {
           />
         </el-select>
         <div class="filter-actions">
-          <el-button @click="resetFilters">重置为本月</el-button>
-          <el-button type="primary" :loading="loading" @click="loadDashboard">查询</el-button>
+          <el-button @click="resetFilters">
+            <RotateCcw :size="16" aria-hidden="true" />
+            重置为本月
+          </el-button>
+          <el-button type="primary" :loading="loading" @click="loadDashboard">
+            <Search :size="16" aria-hidden="true" />
+            查询
+          </el-button>
         </div>
       </div>
       <p v-if="categoryError" class="filter-warning">{{ categoryError }}</p>
@@ -179,23 +186,35 @@ onMounted(() => {
 
     <template v-if="dashboard">
       <div class="kpi-grid" v-loading="loading">
-        <el-card shadow="never" class="kpi-card">
-          <span>新增需求</span>
+        <el-card shadow="never" class="kpi-card kpi-card--blue">
+          <div class="kpi-card__heading">
+            <span class="kpi-card__icon" aria-hidden="true"><FilePlus2 :size="19" /></span>
+            <span>新增需求</span>
+          </div>
           <strong>{{ integerFormatter.format(dashboard.kpis.submittedCount) }}</strong>
           <small>所选范围内已提交，不包含草稿</small>
         </el-card>
-        <el-card shadow="never" class="kpi-card">
-          <span>当前已完成</span>
+        <el-card shadow="never" class="kpi-card kpi-card--green">
+          <div class="kpi-card__heading">
+            <span class="kpi-card__icon" aria-hidden="true"><BadgeCheck :size="19" /></span>
+            <span>当前已完成</span>
+          </div>
           <strong>{{ integerFormatter.format(dashboard.kpis.completedCount) }}</strong>
           <small>完成率 {{ dashboard.kpis.completionRate.toFixed(2) }}%</small>
         </el-card>
-        <el-card shadow="never" class="kpi-card">
-          <span>平均首次响应</span>
+        <el-card shadow="never" class="kpi-card kpi-card--orange">
+          <div class="kpi-card__heading">
+            <span class="kpi-card__icon" aria-hidden="true"><Timer :size="19" /></span>
+            <span>平均首次响应</span>
+          </div>
           <strong>{{ formatFirstResponse(dashboard.kpis.averageFirstResponseHours) }}</strong>
           <small>第一条评估距提交时间</small>
         </el-card>
-        <el-card shadow="never" class="kpi-card">
-          <span>响应样本覆盖</span>
+        <el-card shadow="never" class="kpi-card kpi-card--purple">
+          <div class="kpi-card__heading">
+            <span class="kpi-card__icon" aria-hidden="true"><Gauge :size="19" /></span>
+            <span>响应样本覆盖</span>
+          </div>
           <strong>{{ responseCoverage }}</strong>
           <small>
             {{ dashboard.kpis.firstResponseSampleCount }} / {{ dashboard.kpis.submittedCount }} 条
@@ -260,9 +279,13 @@ onMounted(() => {
 .summary,
 .generated-at,
 .kpi-card small {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
 }
 .generated-at {
+  padding: 5px 10px;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
   font-size: 13px;
 }
 .filters {
@@ -278,9 +301,14 @@ onMounted(() => {
   display: flex;
   gap: 8px;
 }
+.filter-actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
 .filter-warning {
   margin: 10px 0 0;
-  color: #b45309;
+  color: var(--color-warning);
   font-size: 13px;
 }
 .kpi-grid {
@@ -290,11 +318,60 @@ onMounted(() => {
 }
 .kpi-card :deep(.el-card__body) {
   display: grid;
-  gap: 8px;
+  gap: 9px;
+  min-height: 160px;
+  align-content: start;
+}
+.kpi-card {
+  --kpi-color: var(--color-primary);
+  --kpi-soft: var(--color-primary-soft);
+  border-top: 2px solid var(--kpi-color);
+  animation: kpi-enter 360ms var(--ease-standard) both;
+}
+.kpi-card:nth-child(2) {
+  animation-delay: 45ms;
+}
+.kpi-card:nth-child(3) {
+  animation-delay: 90ms;
+}
+.kpi-card:nth-child(4) {
+  animation-delay: 135ms;
+}
+.kpi-card--green {
+  --kpi-color: var(--color-success);
+  --kpi-soft: #ecfdf5;
+}
+.kpi-card--orange {
+  --kpi-color: var(--color-warning);
+  --kpi-soft: #fff7ed;
+}
+.kpi-card--purple {
+  --kpi-color: var(--color-purple);
+  --kpi-soft: #f5f3ff;
+}
+.kpi-card__heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.kpi-card__icon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  color: var(--kpi-color);
+  background: var(--kpi-soft);
+  border-radius: var(--radius-md);
 }
 .kpi-card strong {
-  color: #111827;
+  color: var(--color-text-primary);
   font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 .dashboard-grid {
   display: grid;
@@ -321,17 +398,29 @@ onMounted(() => {
   height: 9px;
   overflow: hidden;
   border-radius: 999px;
-  background: #edf2f7;
+  background: var(--color-surface-secondary);
 }
 .bar-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #409eff;
+  background: var(--color-primary);
   transition: width 0.2s ease;
 }
 .bar-track--category span {
-  background: #67c23a;
+  background: var(--color-purple);
+}
+
+@keyframes kpi-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 900px) {
@@ -354,6 +443,9 @@ onMounted(() => {
   }
   .filter-actions {
     grid-column: auto;
+  }
+  .generated-at {
+    align-self: flex-start;
   }
 }
 </style>

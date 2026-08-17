@@ -1,19 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
-import LoginView from '@/views/auth/LoginView.vue'
-import RegisterView from '@/views/auth/RegisterView.vue'
-import DashboardView from '@/views/dashboard/DashboardView.vue'
-import RequestListView from '@/views/requests/RequestListView.vue'
-import RequestCreateView from '@/views/requests/RequestCreateView.vue'
-import RequestDetailView from '@/views/requests/RequestDetailView.vue'
-import WorkspaceView from '@/views/workspace/WorkspaceView.vue'
-import MemberManagementView from '@/views/admin/MemberManagementView.vue'
-import CategoryManagementView from '@/views/admin/CategoryManagementView.vue'
-import StatisticsView from '@/views/admin/StatisticsView.vue'
-import AuditLogView from '@/views/admin/AuditLogView.vue'
-import SettingsView from '@/views/settings/SettingsView.vue'
-import NotificationCenterView from '@/views/notifications/NotificationCenterView.vue'
 import { useAuthStore } from '@/stores/auth'
+
+const LoginView = () => import('@/views/auth/LoginView.vue')
+const RegisterView = () => import('@/views/auth/RegisterView.vue')
+const DashboardView = () => import('@/views/dashboard/DashboardView.vue')
+const RequestListView = () => import('@/views/requests/RequestListView.vue')
+const RequestCreateView = () => import('@/views/requests/RequestCreateView.vue')
+const RequestDetailView = () => import('@/views/requests/RequestDetailView.vue')
+const WorkspaceView = () => import('@/views/workspace/WorkspaceView.vue')
+const MemberManagementView = () => import('@/views/admin/MemberManagementView.vue')
+const CategoryManagementView = () => import('@/views/admin/CategoryManagementView.vue')
+const StatisticsView = () => import('@/views/admin/StatisticsView.vue')
+const AuditLogView = () => import('@/views/admin/AuditLogView.vue')
+const SettingsView = () => import('@/views/settings/SettingsView.vue')
+const NotificationCenterView = () => import('@/views/notifications/NotificationCenterView.vue')
 
 const router = createRouter({
   history: createWebHistory(),

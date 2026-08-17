@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Filter, Plus, RotateCcw, Search } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEnabledCategories } from '@/api/categories'
 import { getRequests } from '@/api/requests'
@@ -33,7 +34,7 @@ const filters = reactive<{
   submittedRange: string[]
   sort: RequestSort
 }>({
-  keyword: '',
+  keyword: typeof route.query.keyword === 'string' ? route.query.keyword.slice(0, 80) : '',
   status: undefined,
   categoryId: undefined,
   submittedRange: [],
@@ -163,6 +164,19 @@ function openDetail(id: string) {
   void router.push({ name: 'request-detail', params: { id } })
 }
 
+watch(
+  () => [route.query.keyword, route.query.status],
+  ([keyword, status]) => {
+    filters.keyword = typeof keyword === 'string' ? keyword.slice(0, 80) : ''
+    filters.status =
+      typeof status === 'string' && statusOptions.some((option) => option.value === status)
+        ? (status as RequestStatus)
+        : undefined
+    page.value = 1
+    void loadData()
+  },
+)
+
 onMounted(() => {
   void loadCategories()
   void loadData()
@@ -172,11 +186,23 @@ onMounted(() => {
 <template>
   <section class="page">
     <div class="page__header">
-      <h2>{{ pageTitle }}</h2>
-      <el-button v-if="canCreate" type="primary" @click="openCreate">提交需求</el-button>
+      <div>
+        <h1>{{ pageTitle }}</h1>
+        <p>按状态、分类与时间快速定位需求，持续跟踪处理进度。</p>
+      </div>
+      <el-button v-if="canCreate" type="primary" @click="openCreate">
+        <Plus :size="17" aria-hidden="true" />
+        提交需求
+      </el-button>
     </div>
 
-    <el-card>
+    <el-card class="filter-card" shadow="never">
+      <template #header>
+        <div class="filter-card__heading">
+          <span><Filter :size="17" aria-hidden="true" />筛选需求</span>
+          <small>可组合多个条件</small>
+        </div>
+      </template>
       <el-form class="filters" label-position="top" @submit.prevent="search">
         <el-form-item label="关键词">
           <el-input
@@ -231,18 +257,46 @@ onMounted(() => {
         </el-form-item>
 
         <div class="filters__actions">
-          <el-button type="primary" native-type="submit">查询</el-button>
-          <el-button @click="reset">重置</el-button>
+          <el-button type="primary" native-type="submit">
+            <Search :size="16" aria-hidden="true" />
+            查询
+          </el-button>
+          <el-button @click="reset">
+            <RotateCcw :size="16" aria-hidden="true" />
+            重置
+          </el-button>
         </div>
       </el-form>
     </el-card>
 
-    <el-card>
-      <el-table v-loading="loading" :data="items" row-key="id" empty-text="暂无需求">
+    <el-card class="results-card">
+      <template #header>
+        <div class="results-heading">
+          <div>
+            <strong>需求结果</strong>
+            <span>共 {{ total }} 条</span>
+          </div>
+          <span>第 {{ page }} 页</span>
+        </div>
+      </template>
+      <el-table
+        v-loading="loading"
+        :data="items"
+        row-key="id"
+        empty-text="未找到符合条件的需求"
+        class="request-table"
+        @row-click="(row: RequestSummary) => openDetail(row.id)"
+      >
         <el-table-column label="需求编号" width="180">
           <template #default="{ row }">{{ row.requestNo ?? '—' }}</template>
         </el-table-column>
-        <el-table-column prop="title" label="标题" min-width="220" show-overflow-tooltip />
+        <el-table-column label="标题" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            <button type="button" class="title-link" @click.stop="openDetail(row.id)">
+              {{ row.title }}
+            </button>
+          </template>
+        </el-table-column>
         <el-table-column prop="categoryName" label="分类" width="130" />
         <el-table-column prop="creatorName" label="创建人" width="120" />
         <el-table-column label="紧急程度" width="100">
@@ -267,7 +321,7 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row.id)">查看</el-button>
+            <el-button link type="primary" @click.stop="openDetail(row.id)">查看</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -287,6 +341,48 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.filter-card,
+.results-card {
+  min-width: 0;
+}
+
+.filter-card__heading,
+.results-heading,
+.results-heading > div,
+.filter-card__heading > span {
+  display: flex;
+  align-items: center;
+}
+
+.filter-card__heading,
+.results-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.filter-card__heading > span {
+  gap: 8px;
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+
+.filter-card__heading small,
+.results-heading > span,
+.results-heading div > span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.results-heading > div {
+  gap: 9px;
+}
+
+.results-heading strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+}
+
 .filters {
   display: grid;
   grid-template-columns: minmax(180px, 1.2fr) repeat(4, minmax(150px, 1fr)) auto;
@@ -305,12 +401,51 @@ onMounted(() => {
 
 .filters__actions {
   display: flex;
+  gap: 8px;
   padding-bottom: 1px;
+}
+
+.filters__actions :deep(.el-button) {
+  margin: 0;
+}
+
+.filters__actions :deep(.el-button span),
+.page__header :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.results-card :deep(.el-card__body) {
+  padding: 0 0 16px;
+}
+
+.request-table :deep(.el-table__row) {
+  cursor: pointer;
+}
+
+.title-link {
+  display: block;
+  max-width: 100%;
+  padding: 4px 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 580;
+}
+
+.title-link:hover {
+  color: var(--color-primary-strong);
 }
 
 .pagination {
   justify-content: flex-end;
-  margin-top: 16px;
+  margin: 16px 18px 0;
 }
 
 @media (max-width: 1100px) {
@@ -322,6 +457,11 @@ onMounted(() => {
 @media (max-width: 640px) {
   .filters {
     grid-template-columns: 1fr;
+  }
+
+  .filters__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .pagination {

@@ -3,8 +3,10 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { ArrowLeft, UserPlus } from '@lucide/vue'
 import { getRegistrationStatus, register } from '@/api/auth'
 import { getApiErrorMessage } from '@/api/http'
+import AuthLayout from '@/layouts/AuthLayout.vue'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -105,9 +107,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="register-page">
-    <el-card v-loading="checking" class="register-card">
-      <h1>注册需求方账号</h1>
+  <AuthLayout
+    eyebrow="账号注册"
+    title="创建需求方账号"
+    description="完善基本信息后，即可提交并跟踪技术需求。"
+    wide
+  >
+    <div v-loading="checking" class="register-content">
       <el-result v-if="!checking && !enabled" icon="warning" title="自助注册未开放">
         <template #extra>
           <el-button type="primary" @click="router.replace('/login')">返回登录</el-button>
@@ -157,41 +163,58 @@ onMounted(async () => {
           </el-form-item>
         </div>
         <div class="actions">
-          <el-button @click="router.push('/login')">返回登录</el-button>
-          <el-button type="primary" native-type="submit" :loading="loading">注册</el-button>
+          <el-button @click="router.push('/login')">
+            <ArrowLeft :size="16" aria-hidden="true" />
+            返回登录
+          </el-button>
+          <el-button type="primary" native-type="submit" :loading="loading">
+            <UserPlus :size="16" aria-hidden="true" />
+            创建账号
+          </el-button>
         </div>
       </el-form>
-    </el-card>
-  </main>
+    </div>
+  </AuthLayout>
 </template>
 
 <style scoped>
-.register-page {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 24px;
-  background: #eef1f5;
+.register-content {
+  min-height: 180px;
 }
 
-.register-card {
-  width: min(720px, 100%);
-}
 .register-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  column-gap: 18px;
 }
+
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.actions :deep(.el-button) {
+  margin: 0;
+}
+
+.actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 @media (max-width: 620px) {
   .register-grid {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
