@@ -4,6 +4,8 @@
 
 面向校内需求方、计算机技术组成员和管理员的需求协作平台，覆盖需求提交、技术评估、任务分配、进度记录、附件、交付验收、站内通知、管理后台、统计与审计。
 
+当前阶段：M6 测试与上线验收已完成，进入 M7 正式运行与迭代。运行交接和迭代入口见 [M7 正式运行与迭代清单](docs/M7正式运行与迭代清单.md)，版本变更见 [CHANGELOG](CHANGELOG.md)。
+
 ## 技术栈
 
 - 前端：Vue 3、TypeScript、Vite、Element Plus、Pinia、Vue Router。
@@ -29,6 +31,7 @@
 - [项目流程书](docs/项目流程书.md)
 - [项目开发规范](docs/项目开发规范.md)
 - [M6 测试与验收清单](docs/M6测试与验收清单.md)
+- [M7 正式运行与迭代清单](docs/M7正式运行与迭代清单.md)
 
 ## 环境要求
 
@@ -107,6 +110,7 @@ Set-Location backend
 .\mvnw.cmd clean test
 
 Set-Location ..\frontend
+pnpm format:check
 pnpm typecheck
 pnpm lint
 pnpm test
@@ -233,6 +237,14 @@ docker compose --env-file deploy/.env.prod `
 ```
 
 本仓库已显式设置 Compose 项目名 `tech-request-prod`，即使项目路径包含中文，也不需要额外传 `-p`。
+
+准备正式发布时可运行完整发布前检查。脚本不会打印环境变量、构建镜像或启动容器；默认要求工作区已提交且干净：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File deploy/Test-ReleaseReadiness.ps1
+```
+
+代码审查阶段可临时使用 `-AllowDirtyWorktree`，已经单独完成质量门禁时可再传 `-SkipQualityChecks`。正式发布前仍应使用默认参数执行一次完整检查。
 
 ### 4. 构建并启动
 
