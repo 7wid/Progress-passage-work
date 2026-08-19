@@ -14,6 +14,7 @@ import cn.edu.techgroup.outsourcing.common.error.ErrorCode;
 import cn.edu.techgroup.outsourcing.modules.statistics.dto.AdminStatisticsQuery;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsCategoryRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsMapper;
+import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsMemberWorkloadRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsStatusRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsSummaryRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsTrendRow;
@@ -61,6 +62,10 @@ class AdminStatisticsServiceImplTest {
                 .thenReturn(List.of(
                         new StatisticsTrendRow(LocalDate.of(2026, 8, 1), 1L),
                         new StatisticsTrendRow(LocalDate.of(2026, 8, 3), 3L)));
+        when(statisticsMapper.selectMemberWorkloads(any(), any(), isNull()))
+                .thenReturn(List.of(
+                        new StatisticsMemberWorkloadRow(5L, "member-a", "成员甲", 3L, 2L, 1L),
+                        new StatisticsMemberWorkloadRow(6L, "member-b", "成员乙", 0L, 0L, 0L)));
 
         var result = service.getDashboard(
                 new AdminStatisticsQuery(
@@ -77,6 +82,9 @@ class AdminStatisticsServiceImplTest {
         assertEquals(List.of(1L, 0L, 3L), result.submissionTrend().stream()
                 .map(item -> item.count()).toList());
         assertEquals("8", result.categoryDistribution().getFirst().categoryId());
+        assertEquals("5", result.memberWorkloads().getFirst().memberId());
+        assertEquals(3, result.memberWorkloads().getFirst().activeCount());
+        assertEquals(0, result.memberWorkloads().get(1).activeCount());
 
         verify(statisticsMapper).selectSummary(
                 Instant.parse("2026-07-31T16:00:00Z"),
@@ -90,6 +98,7 @@ class AdminStatisticsServiceImplTest {
         when(statisticsMapper.selectStatusDistribution(any(), any(), isNull())).thenReturn(List.of());
         when(statisticsMapper.selectCategoryDistribution(any(), any(), isNull())).thenReturn(List.of());
         when(statisticsMapper.selectSubmissionTrend(any(), any(), isNull())).thenReturn(List.of());
+        when(statisticsMapper.selectMemberWorkloads(any(), any(), isNull())).thenReturn(List.of());
 
         var result = service.getDashboard(new AdminStatisticsQuery(null, null, null), user(UserRole.ADMIN));
 
@@ -97,6 +106,7 @@ class AdminStatisticsServiceImplTest {
         assertEquals(LocalDate.of(2026, 8, 15), result.range().to());
         assertEquals(new BigDecimal("0.00"), result.kpis().completionRate());
         assertEquals(15, result.submissionTrend().size());
+        assertTrue(result.memberWorkloads().isEmpty());
     }
 
     @Test

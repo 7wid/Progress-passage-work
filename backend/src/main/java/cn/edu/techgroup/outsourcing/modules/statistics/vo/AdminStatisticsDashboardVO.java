@@ -9,4 +9,5 @@ public record AdminStatisticsDashboardVO(
         List<StatusCountVO> statusDistribution,
         List<CategoryCountVO> categoryDistribution,
         List<DailyRequestCountVO> submissionTrend,
+        List<MemberWorkloadVO> memberWorkloads,
         Instant generatedAt) {}

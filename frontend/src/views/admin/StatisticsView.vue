@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { getAdminCategories } from '@/api/adminCategories'
 import { getApiErrorMessage } from '@/api/http'
 import { getAdminStatistics } from '@/api/statistics'
+import MemberWorkloadTable from '@/components/statistics/MemberWorkloadTable.vue'
 import StatisticsTrendChart from '@/components/statistics/StatisticsTrendChart.vue'
 import type { AdminCategory } from '@/types/admin'
 import type { RequestStatus } from '@/types/request'
@@ -297,6 +298,16 @@ onMounted(() => {
           </div>
           <el-empty v-else description="所选范围内暂无分类数据" />
         </el-card>
+
+        <el-card class="member-workload-card">
+          <template #header>
+            <div class="section-heading">
+              <strong>成员负载</strong>
+              <span>按主负责人统计所选范围内当前未终结需求</span>
+            </div>
+          </template>
+          <MemberWorkloadTable :data="dashboard.memberWorkloads" :loading="loading" />
+        </el-card>
       </div>
     </template>
 
@@ -421,6 +432,20 @@ onMounted(() => {
 }
 .trend-card {
   grid-column: 1 / -1;
+}
+.member-workload-card {
+  grid-column: 1 / -1;
+}
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+.section-heading span {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
 }
 .distribution-list {
   display: grid;
