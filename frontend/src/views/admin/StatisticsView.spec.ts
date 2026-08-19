@@ -1,16 +1,25 @@
 import { defineComponent, h } from 'vue'
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ElMessage } from 'element-plus'
 import StatisticsView from './StatisticsView.vue'
 import { getAdminCategories } from '@/api/adminCategories'
 import { getAdminStatistics } from '@/api/statistics'
 import type { AdminStatisticsDashboard } from '@/types/statistics'
+import { downloadStatisticsCsv } from '@/utils/statisticsExport'
 
 vi.mock('@/api/adminCategories', () => ({ getAdminCategories: vi.fn() }))
 vi.mock('@/api/statistics', () => ({ getAdminStatistics: vi.fn() }))
+vi.mock('@/utils/statisticsExport', () => ({ downloadStatisticsCsv: vi.fn() }))
+vi.mock('element-plus', () => ({
+  ElMessage: { success: vi.fn(), error: vi.fn() },
+}))
 
 const categoriesMock = vi.mocked(getAdminCategories)
 const statisticsMock = vi.mocked(getAdminStatistics)
+const downloadMock = vi.mocked(downloadStatisticsCsv)
+const messageSuccessMock = vi.mocked(ElMessage.success)
+const messageErrorMock = vi.mocked(ElMessage.error)
 const dashboard = {
   range: { from: '2026-08-01', to: '2026-08-15', categoryId: null },
   kpis: {
@@ -27,13 +36,23 @@ const dashboard = {
 } satisfies AdminStatisticsDashboard
 
 const ButtonStub = defineComponent({
-  props: { loading: Boolean },
+  props: { disabled: Boolean, loading: Boolean },
   emits: ['click'],
   setup(props, { emit, slots }) {
     return () =>
-      h('button', { disabled: props.loading, onClick: () => emit('click') }, slots.default?.())
+      h(
+        'button',
+        { disabled: props.disabled || props.loading, onClick: () => emit('click') },
+        slots.default?.(),
+      )
   },
 })
+
+function buttonByText(wrapper: ReturnType<typeof mountView>, text: string) {
+  const button = wrapper.findAll('button').find((item) => item.text().includes(text))
+  if (!button) throw new Error(`未找到按钮：${text}`)
+  return button
+}
 
 function mountView() {
   return shallowMount(StatisticsView, {
@@ -58,6 +77,7 @@ describe('StatisticsView', () => {
     vi.clearAllMocks()
     categoriesMock.mockResolvedValue([])
     statisticsMock.mockResolvedValue(dashboard)
+    downloadMock.mockReturnValue('需求统计_2026-08-01_2026-08-15.csv')
   })
 
   it('进入页面时并行加载分类与本月统计并解释统计口径', async () => {
@@ -79,5 +99,31 @@ describe('StatisticsView', () => {
 
     expect(wrapper.text()).toContain('重新加载')
     expect(wrapper.text()).not.toContain('新增需求')
+    expect(buttonByText(wrapper, '导出 CSV').attributes('disabled')).toBeDefined()
+  })
+
+  it('导出当前已加载的统计结果并反馈文件名', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await buttonByText(wrapper, '导出 CSV').trigger('click')
+
+    expect(downloadMock).toHaveBeenCalledWith(
+      dashboard,
+      expect.objectContaining({ categoryName: '全部分类' }),
+    )
+    expect(messageSuccessMock).toHaveBeenCalledWith('已导出 需求统计_2026-08-01_2026-08-15.csv')
+  })
+
+  it('浏览器拒绝下载时给出可恢复的错误反馈', async () => {
+    downloadMock.mockImplementationOnce(() => {
+      throw new Error('blocked')
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await buttonByText(wrapper, '导出 CSV').trigger('click')
+
+    expect(messageErrorMock).toHaveBeenCalledWith('报表导出失败，请重试')
   })
 })

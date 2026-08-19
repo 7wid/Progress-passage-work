@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { BadgeCheck, FilePlus2, Gauge, RotateCcw, Search, Timer } from '@lucide/vue'
+import { BadgeCheck, Download, FilePlus2, Gauge, RotateCcw, Search, Timer } from '@lucide/vue'
+import { ElMessage } from 'element-plus'
 import { getAdminCategories } from '@/api/adminCategories'
 import { getApiErrorMessage } from '@/api/http'
 import { getAdminStatistics } from '@/api/statistics'
@@ -8,6 +9,7 @@ import StatisticsTrendChart from '@/components/statistics/StatisticsTrendChart.v
 import type { AdminCategory } from '@/types/admin'
 import type { RequestStatus } from '@/types/request'
 import type { AdminStatisticsDashboard } from '@/types/statistics'
+import { downloadStatisticsCsv } from '@/utils/statisticsExport'
 
 const BUSINESS_TIME_ZONE = 'Asia/Shanghai'
 const statusLabels: Record<RequestStatus, string> = {
@@ -65,6 +67,14 @@ const responseCoverage = computed(() => {
   if (!kpis || kpis.submittedCount === 0) return '0%'
   return `${Math.round((kpis.firstResponseSampleCount / kpis.submittedCount) * 100)}%`
 })
+const exportCategoryName = computed(() => {
+  const exportedCategoryId = dashboard.value?.range.categoryId
+  if (!exportedCategoryId) return '全部分类'
+  return (
+    categories.value.find((category) => category.id === exportedCategoryId)?.name ??
+    `分类编号 ${exportedCategoryId}`
+  )
+})
 
 function barWidth(count: number, maximum: number): string {
   return count === 0 ? '0%' : `${Math.max(3, (count / maximum) * 100)}%`
@@ -121,6 +131,19 @@ function resetFilters(): void {
   void loadDashboard()
 }
 
+function exportDashboard(): void {
+  if (!dashboard.value || loading.value) return
+  try {
+    const filename = downloadStatisticsCsv(dashboard.value, {
+      categoryName: exportCategoryName.value,
+      statusLabels,
+    })
+    ElMessage.success(`已导出 ${filename}`)
+  } catch {
+    ElMessage.error('报表导出失败，请重试')
+  }
+}
+
 onMounted(() => {
   void loadCategories()
   void loadDashboard()
@@ -134,9 +157,15 @@ onMounted(() => {
         <h1>数据概览</h1>
         <span class="summary">按提交日期统计需求处理情况与首次评估响应效率</span>
       </div>
-      <span v-if="dashboard" class="generated-at">
-        数据生成于 {{ formatGeneratedAt(dashboard.generatedAt) }}
-      </span>
+      <div class="page-header-actions">
+        <span v-if="dashboard" class="generated-at">
+          数据生成于 {{ formatGeneratedAt(dashboard.generatedAt) }}
+        </span>
+        <el-button :disabled="!dashboard || loading" @click="exportDashboard">
+          <Download :size="16" aria-hidden="true" />
+          导出 CSV
+        </el-button>
+      </div>
     </div>
 
     <el-card>
@@ -287,6 +316,18 @@ onMounted(() => {
   border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
   font-size: 13px;
+}
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.page-header-actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 .filters {
   display: grid;
@@ -446,6 +487,13 @@ onMounted(() => {
   }
   .generated-at {
     align-self: flex-start;
+  }
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .page-header-actions :deep(.el-button) {
+    min-height: 44px;
   }
 }
 </style>
