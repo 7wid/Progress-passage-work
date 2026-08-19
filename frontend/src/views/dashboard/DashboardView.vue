@@ -233,13 +233,7 @@ onMounted(loadDashboard)
         <el-table-column label="需求编号" width="170">
           <template #default="{ row }">{{ row.requestNo ?? '草稿' }}</template>
         </el-table-column>
-        <el-table-column label="标题" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">
-            <button type="button" class="request-title-link" @click.stop="openRequest(row.id)">
-              {{ row.title }}
-            </button>
-          </template>
-        </el-table-column>
+        <el-table-column prop="title" label="标题" min-width="220" show-overflow-tooltip />
         <el-table-column prop="categoryName" label="分类" width="140" />
         <el-table-column label="状态" width="110">
           <template #default="{ row }"><RequestStatusTag :status="row.status" /></template>
@@ -543,25 +537,6 @@ onMounted(loadDashboard)
 
 .recent-table :deep(.el-table__row) {
   cursor: pointer;
-}
-
-.request-title-link {
-  display: block;
-  max-width: 100%;
-  padding: 4px 0;
-  overflow: hidden;
-  color: var(--color-text-primary);
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: transparent;
-  border: 0;
-  font: inherit;
-  font-weight: 580;
-}
-
-.request-title-link:hover {
-  color: var(--color-primary-strong);
 }
 
 @media (max-width: 1180px) {
