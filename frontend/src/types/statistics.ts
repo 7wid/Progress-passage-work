@@ -36,11 +36,21 @@ export interface DailyRequestCount {
   count: number
 }
 
+export interface MemberWorkload {
+  memberId: string
+  memberAccount: string
+  memberName: string
+  activeCount: number
+  inProgressCount: number
+  pendingAcceptanceCount: number
+}
+
 export interface AdminStatisticsDashboard {
   range: StatisticsRange
   kpis: StatisticsKpis
   statusDistribution: StatusCount[]
   categoryDistribution: CategoryCount[]
   submissionTrend: DailyRequestCount[]
+  memberWorkloads: MemberWorkload[]
   generatedAt: string
 }

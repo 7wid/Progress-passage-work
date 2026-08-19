@@ -19,6 +19,16 @@ const dashboard = {
   statusDistribution: [{ status: 'COMPLETED', count: 1 }],
   categoryDistribution: [{ categoryId: '3', categoryName: '网站开发', count: 4 }],
   submissionTrend: [{ date: '2026-08-01', count: 4 }],
+  memberWorkloads: [
+    {
+      memberId: '5',
+      memberAccount: 'member-a',
+      memberName: '成员甲',
+      activeCount: 3,
+      inProgressCount: 2,
+      pendingAcceptanceCount: 1,
+    },
+  ],
   generatedAt: '2026-08-15T12:00:00Z',
 } satisfies AdminStatisticsDashboard
 
@@ -63,6 +73,8 @@ describe('statistics export', () => {
     expect(csv).toContain('"完成率","25.00%"')
     expect(csv).toContain('"已完成","1"')
     expect(csv).toContain('"2026-08-01","4"')
+    expect(csv).toContain('"成员负载"')
+    expect(csv).toContain('"成员甲","member-a","3","2","1"')
     expect(statisticsCsvFilename(dashboard.range)).toBe('需求统计_2026-08-01_2026-08-15.csv')
   })
 
@@ -71,6 +83,13 @@ describe('statistics export', () => {
       ...dashboard,
       categoryDistribution: [
         { categoryId: '9', categoryName: '=HYPERLINK("https://example.test","打开")', count: 1 },
+      ],
+      memberWorkloads: [
+        {
+          ...dashboard.memberWorkloads[0]!,
+          memberAccount: '@unsafe',
+          memberName: '-SUM(1,1)',
+        },
       ],
     }
 
@@ -81,6 +100,7 @@ describe('statistics export', () => {
 
     expect(csv).toContain('"\'+SUM(1,1)"')
     expect(csv).toContain('"\'=HYPERLINK(""https://example.test"",""打开"")"')
+    expect(csv).toContain('"\'-SUM(1,1)","\'@unsafe"')
   })
 
   it('触发隐藏下载链接并释放临时对象地址', () => {

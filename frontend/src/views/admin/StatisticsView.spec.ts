@@ -32,6 +32,16 @@ const dashboard = {
   statusDistribution: [{ status: 'COMPLETED', count: 1 }],
   categoryDistribution: [{ categoryId: '3', categoryName: '网站开发', count: 4 }],
   submissionTrend: [{ date: '2026-08-01', count: 4 }],
+  memberWorkloads: [
+    {
+      memberId: '5',
+      memberAccount: 'member-a',
+      memberName: '成员甲',
+      activeCount: 3,
+      inProgressCount: 2,
+      pendingAcceptanceCount: 1,
+    },
+  ],
   generatedAt: '2026-08-15T12:00:00Z',
 } satisfies AdminStatisticsDashboard
 
@@ -67,6 +77,7 @@ function mountView() {
         'el-option': true,
         'el-select': true,
         'el-skeleton': true,
+        MemberWorkloadTable: { template: '<div>成员负载明细</div>' },
       },
     },
   })
@@ -90,6 +101,7 @@ describe('StatisticsView', () => {
     expect(wrapper.text()).toContain('新增需求')
     expect(wrapper.text()).toContain('平均首次响应')
     expect(wrapper.text()).toContain('第一条评估距提交时间')
+    expect(wrapper.text()).toContain('成员负载')
   })
 
   it('统计加载失败时保留重试入口', async () => {

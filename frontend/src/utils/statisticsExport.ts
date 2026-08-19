@@ -67,6 +67,18 @@ export function buildStatisticsCsv(
     ...(dashboard.submissionTrend.length
       ? dashboard.submissionTrend.map((item) => [item.date, item.count])
       : [['暂无数据', '']]),
+    [],
+    ['成员负载'],
+    ['成员', '账号', '当前负载', '处理中', '待验收'],
+    ...(dashboard.memberWorkloads.length
+      ? dashboard.memberWorkloads.map((item) => [
+          item.memberName,
+          item.memberAccount,
+          item.activeCount,
+          item.inProgressCount,
+          item.pendingAcceptanceCount,
+        ])
+      : [['暂无数据', '', '', '', '']]),
   ]
 
   return UTF8_BOM + rows.map(csvRow).join('\r\n')

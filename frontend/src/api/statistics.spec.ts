@@ -18,6 +18,7 @@ const dashboard = {
   statusDistribution: [],
   categoryDistribution: [],
   submissionTrend: [],
+  memberWorkloads: [],
   generatedAt: '2026-08-15T12:00:00Z',
 } satisfies AdminStatisticsDashboard
 

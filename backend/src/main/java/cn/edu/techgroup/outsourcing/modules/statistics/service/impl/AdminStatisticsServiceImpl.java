@@ -6,6 +6,7 @@ import cn.edu.techgroup.outsourcing.modules.request.enums.RequestStatus;
 import cn.edu.techgroup.outsourcing.modules.statistics.dto.AdminStatisticsQuery;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsCategoryRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsMapper;
+import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsMemberWorkloadRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsStatusRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsSummaryRow;
 import cn.edu.techgroup.outsourcing.modules.statistics.mapper.StatisticsTrendRow;
@@ -13,6 +14,7 @@ import cn.edu.techgroup.outsourcing.modules.statistics.service.AdminStatisticsSe
 import cn.edu.techgroup.outsourcing.modules.statistics.vo.AdminStatisticsDashboardVO;
 import cn.edu.techgroup.outsourcing.modules.statistics.vo.CategoryCountVO;
 import cn.edu.techgroup.outsourcing.modules.statistics.vo.DailyRequestCountVO;
+import cn.edu.techgroup.outsourcing.modules.statistics.vo.MemberWorkloadVO;
 import cn.edu.techgroup.outsourcing.modules.statistics.vo.StatisticsKpiVO;
 import cn.edu.techgroup.outsourcing.modules.statistics.vo.StatisticsRangeVO;
 import cn.edu.techgroup.outsourcing.modules.statistics.vo.StatusCountVO;
@@ -72,6 +74,8 @@ public class AdminStatisticsServiceImpl implements AdminStatisticsService {
                 fromInclusive, toExclusive, categoryId);
         List<StatisticsTrendRow> trendRows = statisticsMapper.selectSubmissionTrend(
                 fromInclusive, toExclusive, categoryId);
+        List<StatisticsMemberWorkloadRow> workloadRows = statisticsMapper.selectMemberWorkloads(
+                fromInclusive, toExclusive, categoryId);
 
         StatisticsSummaryRow safeSummary = summary == null
                 ? new StatisticsSummaryRow(0L, 0L, 0L, null)
@@ -95,6 +99,7 @@ public class AdminStatisticsServiceImpl implements AdminStatisticsService {
                 buildStatusDistribution(statusRows),
                 buildCategoryDistribution(categoryRows),
                 buildTrend(range, trendRows),
+                buildMemberWorkloads(workloadRows),
                 Instant.now(clock).truncatedTo(ChronoUnit.MILLIS));
     }
 
@@ -166,6 +171,23 @@ public class AdminStatisticsServiceImpl implements AdminStatisticsService {
         return range.from()
                 .datesUntil(range.to().plusDays(1))
                 .map(date -> new DailyRequestCountVO(date, counts.getOrDefault(date, 0L)))
+                .toList();
+    }
+
+    private List<MemberWorkloadVO> buildMemberWorkloads(
+            List<StatisticsMemberWorkloadRow> rows) {
+        if (rows == null) {
+            return List.of();
+        }
+        return rows.stream()
+                .filter(row -> row != null && row.memberId() != null)
+                .map(row -> new MemberWorkloadVO(
+                        row.memberId().toString(),
+                        row.memberAccount(),
+                        row.memberName(),
+                        value(row.activeCount()),
+                        value(row.inProgressCount()),
+                        value(row.pendingAcceptanceCount())))
                 .toList();
     }
 

@@ -96,4 +96,39 @@ public interface StatisticsMapper {
             @Param("fromInclusive") Instant fromInclusive,
             @Param("toExclusive") Instant toExclusive,
             @Param("categoryId") Long categoryId);
+
+    @Select("""
+            <script>
+            SELECT u.id AS member_id,
+                   u.account AS member_account,
+                   u.display_name AS member_name,
+                   COUNT(tr.id) AS active_count,
+                   COALESCE(SUM(tr.status = 'IN_PROGRESS'), 0) AS in_progress_count,
+                   COALESCE(SUM(tr.status = 'PENDING_ACCEPTANCE'), 0) AS pending_acceptance_count
+            FROM sys_user u
+            LEFT JOIN request_member rm
+              ON rm.user_id = u.id
+             AND rm.member_type = 'OWNER'
+            LEFT JOIN tech_request tr
+              ON tr.id = rm.request_id
+             AND tr.submitted_at &gt;= #{fromInclusive}
+             AND tr.submitted_at &lt; #{toExclusive}
+             AND tr.status NOT IN ('COMPLETED', 'REJECTED', 'CANCELLED')
+            <if test="categoryId != null">
+             AND tr.category_id = #{categoryId}
+            </if>
+            WHERE u.status = 'ACTIVE'
+              AND u.role IN ('MEMBER', 'ADMIN')
+            GROUP BY u.id, u.account, u.display_name
+            ORDER BY active_count DESC,
+                     in_progress_count DESC,
+                     pending_acceptance_count DESC,
+                     u.display_name ASC,
+                     u.id ASC
+            </script>
+            """)
+    List<StatisticsMemberWorkloadRow> selectMemberWorkloads(
+            @Param("fromInclusive") Instant fromInclusive,
+            @Param("toExclusive") Instant toExclusive,
+            @Param("categoryId") Long categoryId);
 }
