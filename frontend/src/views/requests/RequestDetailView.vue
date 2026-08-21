@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ArrowLeft,
+  CircleX,
+  FileArchive,
+  FileText,
+  ListTodo,
+  Pencil,
+  ScrollText,
+} from '@lucide/vue'
 import { getRequestAssignment } from '@/api/assignments'
 import { getRequestProgress } from '@/api/progress'
 import { getDeliveryAcceptance } from '@/api/deliveries'
@@ -9,6 +18,7 @@ import AdminRequestActions from '@/components/admin/AdminRequestActions.vue'
 import AssignmentPanel from '@/components/assignment/AssignmentPanel.vue'
 import AttachmentList from '@/components/common/AttachmentList.vue'
 import AttachmentUploader from '@/components/common/AttachmentUploader.vue'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import DeliveryAcceptancePanel from '@/components/delivery/DeliveryAcceptancePanel.vue'
 import ProgressPanel from '@/components/progress/ProgressPanel.vue'
 import RequestTimeline from '@/components/progress/RequestTimeline.vue'
@@ -23,6 +33,7 @@ import { cancelRequest, getRequestDetail } from '@/api/requests'
 import EvaluationForm from '@/components/evaluation/EvaluationForm.vue'
 import EvaluationHistory from '@/components/evaluation/EvaluationHistory.vue'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
+import RequesterJourneyPanel from '@/components/requests/RequesterJourneyPanel.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { CreatedEvaluationResult, EvaluationRecord } from '@/types/evaluation'
 import type { RequestDetail, RequestUrgency } from '@/types/request'
@@ -92,6 +103,8 @@ const isTeamMember = computed(
 )
 
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+
+const isRequester = computed(() => authStore.user?.role === 'REQUESTER')
 
 const isCreator = computed(
   () => detail.value !== null && authStore.user?.id === detail.value.creatorId,
@@ -383,7 +396,7 @@ async function handleConfirmRejection(evaluation: EvaluationRecord) {
 
   try {
     await ElMessageBox.confirm(
-      '确认后需求将进入“已驳回”，该操作会影响需求方。是否继续？',
+      '确认后需求将进入“已驳回”，申请人会收到结果通知。是否继续？',
       '确认不承接',
       {
         type: 'warning',
@@ -447,44 +460,46 @@ watch(
     </el-result>
 
     <template v-else-if="detail">
-      <!-- ===================================================== -->
-      <!-- 页面头部 -->
-      <!-- ===================================================== -->
-
-      <div class="page__header">
-        <div>
-          <h2>{{ detail.title || '未命名需求' }}</h2>
-          <span class="request-no">
-            {{ detail.requestNo ?? '尚未生成编号' }}
-          </span>
-        </div>
-
-        <div class="header-actions">
+      <AppPageHeader
+        :title="detail.title || '未命名需求'"
+        description="查看需求信息、协作记录与当前处理状态。"
+        eyebrow="REQUEST DETAIL"
+        :icon="FileText"
+      >
+        <template #meta>
+          <span class="request-no">{{ detail.requestNo ?? '尚未生成编号' }}</span>
           <RequestStatusTag :status="detail.status" />
-
+        </template>
+        <template #actions>
           <el-button v-if="canEdit" type="primary" @click="editRequest">
+            <Pencil :size="16" aria-hidden="true" />
             {{ detail.status === 'NEED_MORE_INFO' ? '补充资料' : '编辑草稿' }}
           </el-button>
-
           <el-button v-if="canCancel" type="danger" plain @click="handleCancelRequest">
+            <CircleX :size="16" aria-hidden="true" />
             {{ detail.status === 'DRAFT' ? '放弃草稿' : '取消需求' }}
           </el-button>
+          <el-button @click="backToList">
+            <ArrowLeft :size="16" aria-hidden="true" />返回列表
+          </el-button>
+        </template>
+      </AppPageHeader>
 
-          <el-button @click="backToList"> 返回列表 </el-button>
-        </div>
-      </div>
+      <RequesterJourneyPanel v-if="isRequester && isCreator" :status="detail.status" />
 
-      <!-- ===================================================== -->
-      <!-- 需求基础信息 -->
-      <!-- ===================================================== -->
-
-      <el-card>
+      <el-card class="overview-card">
+        <template #header>
+          <div class="detail-section-heading">
+            <span aria-hidden="true"><ListTodo :size="18" /></span>
+            <div><strong>需求概览</strong><small>基础属性与处理进度</small></div>
+          </div>
+        </template>
         <el-descriptions :column="2" border>
           <el-descriptions-item label="需求分类">
             {{ detail.categoryName }}
           </el-descriptions-item>
 
-          <el-descriptions-item label="创建人">
+          <el-descriptions-item label="申请人">
             {{ detail.creatorName }}
           </el-descriptions-item>
 
@@ -504,7 +519,7 @@ watch(
             {{ detail.budgetDescription ?? '未填写' }}
           </el-descriptions-item>
 
-          <el-descriptions-item label="提交时间">
+          <el-descriptions-item label="发起时间">
             {{ formatDateTime(detail.submittedAt) }}
           </el-descriptions-item>
 
@@ -522,47 +537,42 @@ watch(
         </el-descriptions>
       </el-card>
 
-      <!-- ===================================================== -->
-      <!-- 需求背景 -->
-      <!-- ===================================================== -->
-
-      <el-card header="需求背景">
-        <div class="text-content">
-          {{ detail.background ?? '未填写' }}
+      <el-card class="request-content-card">
+        <template #header>
+          <div class="detail-section-heading">
+            <span aria-hidden="true"><ScrollText :size="18" /></span>
+            <div><strong>需求说明</strong><small>背景、目标与实施约束</small></div>
+          </div>
+        </template>
+        <div class="request-content-grid">
+          <section>
+            <h2>需求背景</h2>
+            <div class="text-content">{{ detail.background ?? '未填写' }}</div>
+          </section>
+          <section>
+            <h2>具体需求</h2>
+            <div class="text-content">{{ detail.description ?? '未填写' }}</div>
+          </section>
+          <section>
+            <h2>期望成果</h2>
+            <div class="text-content">{{ detail.expectedResult ?? '未填写' }}</div>
+          </section>
+          <section>
+            <h2>实施约束</h2>
+            <div class="text-content">{{ detail.technicalConstraints ?? '未填写' }}</div>
+          </section>
         </div>
       </el-card>
 
-      <!-- ===================================================== -->
-      <!-- 具体需求 -->
-      <!-- ===================================================== -->
-
-      <el-card header="具体需求">
-        <div class="text-content">
-          {{ detail.description ?? '未填写' }}
-        </div>
-      </el-card>
-
-      <!-- ===================================================== -->
-      <!-- 期望成果 -->
-      <!-- ===================================================== -->
-
-      <el-card header="期望成果">
-        <div class="text-content">
-          {{ detail.expectedResult ?? '未填写' }}
-        </div>
-      </el-card>
-
-      <!-- ===================================================== -->
-      <!-- 技术限制 -->
-      <!-- ===================================================== -->
-
-      <el-card header="技术限制">
-        <div class="text-content">
-          {{ detail.technicalConstraints ?? '未填写' }}
-        </div>
-      </el-card>
-
-      <el-card header="需求附件">
+      <el-card>
+        <template #header>
+          <div class="detail-section-heading">
+            <span class="detail-section-heading__icon--orange" aria-hidden="true">
+              <FileArchive :size="18" />
+            </span>
+            <div><strong>需求附件</strong><small>申请人提供的参考资料</small></div>
+          </div>
+        </template>
         <el-alert
           v-if="requestAttachmentError"
           type="warning"
@@ -719,19 +729,110 @@ watch(
 
 <style scoped>
 .request-no {
-  color: #6b7280;
+  padding: 3px 8px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 11px;
 }
 
-.header-actions {
+.detail-section-heading {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detail-section-heading > span {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-md);
+}
+
+.detail-section-heading > span.detail-section-heading__icon--orange {
+  color: var(--color-warning);
+  background: #fff7ed;
+}
+
+.detail-section-heading > div {
+  display: grid;
+  gap: 1px;
+}
+
+.detail-section-heading strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+}
+
+.detail-section-heading small {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.request-content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.request-content-grid section {
+  min-width: 0;
+  padding: 2px 22px 22px 0;
+}
+
+.request-content-grid section:nth-child(even) {
+  padding-right: 0;
+  padding-left: 22px;
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.request-content-grid section:nth-child(n + 3) {
+  padding-top: 22px;
+  padding-bottom: 2px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.request-content-grid h2 {
+  margin: 0 0 8px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 650;
 }
 
 .text-content {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-size: 14px;
   line-height: 1.8;
+}
+
+@media (max-width: 700px) {
+  .request-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .request-content-grid section,
+  .request-content-grid section:nth-child(even),
+  .request-content-grid section:nth-child(n + 3) {
+    padding: 18px 0;
+    border-top: 1px solid var(--color-border-subtle);
+    border-left: 0;
+  }
+
+  .request-content-grid section:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .request-content-grid section:last-child {
+    padding-bottom: 0;
+  }
 }
 </style>

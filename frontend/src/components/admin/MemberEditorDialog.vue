@@ -168,7 +168,7 @@ async function submit(): Promise<void> {
 
         <el-form-item label="角色" prop="role" :error="serverErrors.role">
           <el-select v-model="form.role">
-            <el-option label="技术组成员" value="MEMBER" />
+            <el-option label="服务团队成员" value="MEMBER" />
             <el-option label="管理员" value="ADMIN" />
           </el-select>
         </el-form-item>

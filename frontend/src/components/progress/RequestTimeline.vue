@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { History } from '@lucide/vue'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { ProgressLog } from '@/types/progress'
 import type { RequestStatusHistory } from '@/types/request'
 import type { AcceptanceRecord, DeliveryRecord } from '@/types/delivery'
@@ -95,7 +97,15 @@ function safeHttpUrl(value: string | null): string | null {
 </script>
 
 <template>
-  <el-card header="处理时间线">
+  <el-card>
+    <template #header>
+      <AppSectionHeader
+        title="处理时间线"
+        description="状态、进度、交付与验收的完整记录"
+        :icon="History"
+        tone="slate"
+      />
+    </template>
     <el-empty v-if="events.length === 0" description="暂无处理记录" />
 
     <el-timeline v-else>
@@ -117,7 +127,7 @@ function safeHttpUrl(value: string | null): string | null {
             <el-tag type="primary">进度 {{ event.log.progress }}%</el-tag>
             <strong>{{ event.log.authorName }}</strong>
             <el-tag :type="event.log.visibleToRequester ? 'success' : 'warning'" size="small">
-              {{ event.log.visibleToRequester ? '需求方可见' : '仅技术组可见' }}
+              {{ event.log.visibleToRequester ? '申请人可见' : '仅服务团队可见' }}
             </el-tag>
           </div>
           <el-progress :percentage="event.log.progress" />

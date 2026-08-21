@@ -2,8 +2,10 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { ClipboardPenLine } from '@lucide/vue'
 import { createEvaluation } from '@/api/evaluations'
 import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type {
   CreatedEvaluationResult,
   CreateEvaluationInput,
@@ -50,14 +52,14 @@ const isFeasible = computed(() => form.conclusion === 'FEASIBLE')
 
 const publicCommentLabel = computed(() => {
   if (form.conclusion === 'NEED_MORE_INFO') {
-    return '需要补充的问题（需求方可见）'
+    return '需要补充的问题（申请人可见）'
   }
 
   if (form.conclusion === 'NOT_FEASIBLE') {
-    return '暂不承接原因（需求方可见）'
+    return '暂不承接原因（申请人可见）'
   }
 
-  return '评估说明（需求方可见）'
+  return '评估说明（申请人可见）'
 })
 
 const rules: FormRules = {
@@ -91,7 +93,7 @@ const rules: FormRules = {
 
         const length = form.solutionSummary.trim().length
         if (length < 10 || length > 5000) {
-          callback(new Error('技术方案摘要应为 10～5000 个字符'))
+          callback(new Error('实施方案摘要应为 10～5000 个字符'))
           return
         }
 
@@ -270,7 +272,14 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <el-card header="填写可行性评估">
+  <el-card>
+    <template #header>
+      <AppSectionHeader
+        title="填写可行性评估"
+        description="记录可行性、工作量、风险与建议方案"
+        :icon="ClipboardPenLine"
+      />
+    </template>
     <el-form
       ref="formRef"
       :model="form"
@@ -302,7 +311,7 @@ async function handleSubmit() {
 
       <template v-if="isFeasible">
         <el-form-item
-          label="技术方案摘要"
+          label="实施方案摘要"
           prop="solutionSummary"
           :error="serverErrors.solutionSummary"
         >
@@ -363,7 +372,7 @@ async function handleSubmit() {
       </el-form-item>
 
       <el-form-item
-        label="技术组内部备注（需求方不可见）"
+        label="服务团队内部备注（申请人不可见）"
         prop="internalNote"
         :error="serverErrors.internalNote"
       >

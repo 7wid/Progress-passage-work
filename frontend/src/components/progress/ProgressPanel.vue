@@ -2,8 +2,10 @@
 import { reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Activity } from '@lucide/vue'
 import { createProgress } from '@/api/progress'
 import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type {
   CreatedProgressResult,
   CreateProgressInput,
@@ -186,7 +188,14 @@ watch(() => props.snapshot, resetForm, { immediate: true })
 </script>
 
 <template>
-  <el-card header="处理进度">
+  <el-card>
+    <template #header>
+      <AppSectionHeader
+        title="处理进度"
+        description="当前完成度、进度记录与下一步计划"
+        :icon="Activity"
+      />
+    </template>
     <div class="current-progress">
       <strong>当前进度</strong>
       <el-progress :percentage="snapshot.currentProgress" :stroke-width="12" />
@@ -254,8 +263,8 @@ watch(() => props.snapshot, resetForm, { immediate: true })
         <el-form-item label="可见范围" prop="visibleToRequester">
           <el-switch
             v-model="form.visibleToRequester"
-            active-text="需求方可见"
-            inactive-text="仅技术组可见"
+            active-text="申请人可见"
+            inactive-text="仅服务团队可见"
           />
         </el-form-item>
 

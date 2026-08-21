@@ -2,10 +2,12 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { PackageCheck } from '@lucide/vue'
 import { createAcceptance, createDelivery } from '@/api/deliveries'
 import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
 import AttachmentList from '@/components/common/AttachmentList.vue'
 import AttachmentUploader from '@/components/common/AttachmentUploader.vue'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { AttachmentRecord } from '@/types/attachment'
 import type {
   AcceptanceResult,
@@ -220,7 +222,15 @@ watch(
 </script>
 
 <template>
-  <el-card header="交付与验收">
+  <el-card>
+    <template #header>
+      <AppSectionHeader
+        title="交付与验收"
+        description="交付记录、成果链接与验收结论"
+        :icon="PackageCheck"
+        tone="green"
+      />
+    </template>
     <div v-if="latestDelivery" class="latest-delivery">
       <div class="section-heading">
         <strong>最新交付</strong>
@@ -291,7 +301,7 @@ watch(
         <el-alert
           type="info"
           :closable="false"
-          title="提交后需求将进入待验收状态，请确认交付地址已开放给需求方。"
+          title="提交后需求将进入待验收状态，请确认交付地址已开放给申请人。"
         />
         <div class="actions">
           <el-button @click="resetForms">清空</el-button>
@@ -391,7 +401,7 @@ watch(
   display: grid;
   gap: 10px;
   padding: 12px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 .history-delivery:last-child {
   border-bottom: 0;
@@ -414,7 +424,8 @@ watch(
   gap: 8px;
 }
 .section-heading span {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
 }
 .actions {
   display: flex;

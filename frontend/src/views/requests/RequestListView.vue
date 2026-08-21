@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Filter, Plus, RotateCcw, Search } from '@lucide/vue'
+import { ClipboardList, Filter, Plus, RotateCcw, Search } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEnabledCategories } from '@/api/categories'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import type {
   CategoryOption,
@@ -62,8 +63,8 @@ const routeStatus =
 filters.status = routeStatus
 
 const sortOptions: Array<{ label: string; value: RequestSort }> = [
-  { label: '最新提交', value: 'NEWEST' },
-  { label: '最早提交', value: 'OLDEST' },
+  { label: '最新发起', value: 'NEWEST' },
+  { label: '最早发起', value: 'OLDEST' },
   { label: '截止日期升序', value: 'DEADLINE_ASC' },
   { label: '截止日期降序', value: 'DEADLINE_DESC' },
 ]
@@ -78,7 +79,12 @@ const canCreate = computed(
   () => authStore.user?.role === 'REQUESTER' || authStore.user?.role === 'ADMIN',
 )
 
-const pageTitle = computed(() => (authStore.user?.role === 'REQUESTER' ? '我的需求' : '需求池'))
+const pageTitle = computed(() => (authStore.user?.role === 'REQUESTER' ? '我的需求' : '全部需求'))
+const pageDescription = computed(() =>
+  authStore.user?.role === 'REQUESTER'
+    ? '查看您已发起的需求，及时补充资料并跟进处理进展。'
+    : '按状态、分类与时间查看全部需求，协调评估与交付进度。',
+)
 
 const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
   dateStyle: 'medium',
@@ -185,16 +191,19 @@ onMounted(() => {
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h1>{{ pageTitle }}</h1>
-        <p>按状态、分类与时间快速定位需求，持续跟踪处理进度。</p>
-      </div>
-      <el-button v-if="canCreate" type="primary" @click="openCreate">
-        <Plus :size="17" aria-hidden="true" />
-        提交需求
-      </el-button>
-    </div>
+    <AppPageHeader
+      :title="pageTitle"
+      :description="pageDescription"
+      eyebrow="REQUESTS"
+      :icon="ClipboardList"
+    >
+      <template v-if="canCreate" #actions>
+        <el-button type="primary" @click="openCreate">
+          <Plus :size="17" aria-hidden="true" />
+          发起需求
+        </el-button>
+      </template>
+    </AppPageHeader>
 
     <el-card class="filter-card" shadow="never">
       <template #header>
@@ -235,7 +244,7 @@ onMounted(() => {
           </el-select>
         </el-form-item>
 
-        <el-form-item label="提交日期">
+        <el-form-item label="发起日期">
           <el-date-picker
             v-model="filters.submittedRange"
             type="daterange"
@@ -298,7 +307,7 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="categoryName" label="分类" width="130" />
-        <el-table-column prop="creatorName" label="创建人" width="120" />
+        <el-table-column prop="creatorName" label="申请人" width="120" />
         <el-table-column label="紧急程度" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.urgency" :type="urgencyMap[row.urgency as RequestUrgency].type">
@@ -316,7 +325,7 @@ onMounted(() => {
         <el-table-column label="期望日期" width="120">
           <template #default="{ row }">{{ row.expectedDeadline ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="提交时间" width="170">
+        <el-table-column label="发起时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
@@ -409,8 +418,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.filters__actions :deep(.el-button span),
-.page__header :deep(.el-button span) {
+.filters__actions :deep(.el-button span) {
   display: inline-flex;
   align-items: center;
   gap: 7px;

@@ -83,7 +83,7 @@ async function submit(): Promise<void> {
 
       <el-form-item label="排序值" prop="sortOrder" :error="serverErrors.sortOrder">
         <el-input-number v-model="form.sortOrder" :min="0" :max="9999" :precision="0" :step="10" />
-        <span class="field-help">数值越小，提交需求时显示越靠前。</span>
+        <span class="field-help">数值越小，发起需求时显示越靠前。</span>
       </el-form-item>
 
       <el-form-item label="操作原因" prop="reason" :error="serverErrors.reason">
@@ -110,7 +110,7 @@ async function submit(): Promise<void> {
 <style scoped>
 .field-help {
   margin-left: 10px;
-  color: #6b7280;
+  color: var(--color-text-tertiary);
   font-size: 12px;
 }
 </style>

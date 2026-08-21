@@ -2,8 +2,10 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { UsersRound } from '@lucide/vue'
 import { getAssignableMemberOptions, updateRequestAssignment } from '@/api/assignments'
 import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { AssignableMemberOption, RequestAssignment } from '@/types/assignment'
 
 const props = defineProps<{
@@ -67,7 +69,7 @@ function optionLabel(option: AssignableMemberOption): string {
 }
 
 function roleLabel(role: 'MEMBER' | 'ADMIN'): string {
-  return role === 'ADMIN' ? '管理员' : '技术组成员'
+  return role === 'ADMIN' ? '管理员' : '服务团队成员'
 }
 
 function formatDateTime(value: string): string {
@@ -150,7 +152,15 @@ watch(
 </script>
 
 <template>
-  <el-card header="任务成员">
+  <el-card>
+    <template #header>
+      <AppSectionHeader
+        title="任务成员"
+        description="负责人、参与成员与分配调整"
+        :icon="UsersRound"
+        tone="purple"
+      />
+    </template>
     <el-descriptions :column="1" border>
       <el-descriptions-item label="主负责人">
         <template v-if="assignment.owner">

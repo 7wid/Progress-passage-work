@@ -1,12 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { BadgeCheck, Download, FilePlus2, Gauge, RotateCcw, Search, Timer } from '@lucide/vue'
+import {
+  BadgeCheck,
+  ChartPie,
+  ChartNoAxesCombined,
+  Download,
+  FilePlus2,
+  Gauge,
+  RotateCcw,
+  Search,
+  Shapes,
+  Timer,
+  TrendingUp,
+  UsersRound,
+} from '@lucide/vue'
 import { ElMessage } from 'element-plus'
 import { getAdminCategories } from '@/api/adminCategories'
 import { getApiErrorMessage } from '@/api/http'
 import { getAdminStatistics } from '@/api/statistics'
 import MemberWorkloadTable from '@/components/statistics/MemberWorkloadTable.vue'
 import StatisticsTrendChart from '@/components/statistics/StatisticsTrendChart.vue'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { AdminCategory } from '@/types/admin'
 import type { RequestStatus } from '@/types/request'
 import type { AdminStatisticsDashboard } from '@/types/statistics'
@@ -153,21 +168,25 @@ onMounted(() => {
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h1>数据概览</h1>
-        <span class="summary">按提交日期统计需求处理情况与首次评估响应效率</span>
-      </div>
-      <div class="page-header-actions">
+    <AppPageHeader
+      title="数据概览"
+      description="按发起日期统计需求处理情况与首次评估响应效率。"
+      eyebrow="ANALYTICS"
+      :icon="ChartNoAxesCombined"
+      tone="purple"
+    >
+      <template #meta>
         <span v-if="dashboard" class="generated-at">
           数据生成于 {{ formatGeneratedAt(dashboard.generatedAt) }}
         </span>
+      </template>
+      <template #actions>
         <el-button :disabled="!dashboard || loading" @click="exportDashboard">
           <Download :size="16" aria-hidden="true" />
           导出 CSV
         </el-button>
-      </div>
-    </div>
+      </template>
+    </AppPageHeader>
 
     <el-card>
       <div class="filters">
@@ -222,7 +241,7 @@ onMounted(() => {
             <span>新增需求</span>
           </div>
           <strong>{{ integerFormatter.format(dashboard.kpis.submittedCount) }}</strong>
-          <small>所选范围内已提交，不包含草稿</small>
+          <small>所选范围内已发起，不包含草稿</small>
         </el-card>
         <el-card shadow="never" class="kpi-card kpi-card--green">
           <div class="kpi-card__heading">
@@ -238,7 +257,7 @@ onMounted(() => {
             <span>平均首次响应</span>
           </div>
           <strong>{{ formatFirstResponse(dashboard.kpis.averageFirstResponseHours) }}</strong>
-          <small>第一条评估距提交时间</small>
+          <small>第一条评估距发起时间</small>
         </el-card>
         <el-card shadow="never" class="kpi-card kpi-card--purple">
           <div class="kpi-card__heading">
@@ -255,17 +274,30 @@ onMounted(() => {
       <el-alert
         type="info"
         :closable="false"
-        title="统计口径：按需求提交日期纳入样本；完成数取当前状态；首次响应取第一条可行性评估。"
+        title="统计口径：按需求发起日期纳入样本；完成数取当前状态；首次响应取第一条可行性评估。"
       />
 
       <div class="dashboard-grid">
         <el-card class="trend-card">
-          <template #header><strong>新增趋势</strong></template>
+          <template #header>
+            <AppSectionHeader
+              title="新增趋势"
+              description="所选日期范围内的需求发起量"
+              :icon="TrendingUp"
+            />
+          </template>
           <StatisticsTrendChart :data="dashboard.submissionTrend" />
         </el-card>
 
         <el-card>
-          <template #header><strong>状态分布</strong></template>
+          <template #header>
+            <AppSectionHeader
+              title="状态分布"
+              description="当前处理状态构成"
+              :icon="ChartPie"
+              tone="green"
+            />
+          </template>
           <div class="distribution-list">
             <div v-for="item in dashboard.statusDistribution" :key="item.status" class="bar-row">
               <div class="bar-meta">
@@ -280,7 +312,14 @@ onMounted(() => {
         </el-card>
 
         <el-card>
-          <template #header><strong>分类分布</strong></template>
+          <template #header>
+            <AppSectionHeader
+              title="分类分布"
+              description="需求分类数量对比"
+              :icon="Shapes"
+              tone="orange"
+            />
+          </template>
           <div v-if="dashboard.categoryDistribution.length" class="distribution-list">
             <div
               v-for="item in dashboard.categoryDistribution"
@@ -301,10 +340,12 @@ onMounted(() => {
 
         <el-card class="member-workload-card">
           <template #header>
-            <div class="section-heading">
-              <strong>成员负载</strong>
-              <span>按主负责人统计所选范围内当前未终结需求</span>
-            </div>
+            <AppSectionHeader
+              title="成员负载"
+              description="按主负责人统计所选范围内当前未终结需求"
+              :icon="UsersRound"
+              tone="purple"
+            />
           </template>
           <MemberWorkloadTable :data="dashboard.memberWorkloads" :loading="loading" />
         </el-card>
@@ -327,18 +368,6 @@ onMounted(() => {
   border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
   font-size: 13px;
-}
-.page-header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-.page-header-actions :deep(.el-button span) {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
 }
 .filters {
   display: grid;
@@ -436,17 +465,6 @@ onMounted(() => {
 .member-workload-card {
   grid-column: 1 / -1;
 }
-.section-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-}
-.section-heading span {
-  color: var(--color-text-tertiary);
-  font-size: 13px;
-}
 .distribution-list {
   display: grid;
   gap: 15px;
@@ -512,13 +530,6 @@ onMounted(() => {
   }
   .generated-at {
     align-self: flex-start;
-  }
-  .page-header-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .page-header-actions :deep(.el-button) {
-    min-height: 44px;
   }
 }
 </style>

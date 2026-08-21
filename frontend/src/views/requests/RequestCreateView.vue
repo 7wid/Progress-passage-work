@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { ArrowLeft, Save, Send } from '@lucide/vue'
+import { ArrowLeft, FilePenLine, Save, Send } from '@lucide/vue'
 import { getEnabledCategories } from '@/api/categories'
 import { getApiErrorMessage, getApiStatus } from '@/api/http'
 import {
@@ -13,6 +13,7 @@ import {
   submitRequest,
   updateRequest,
 } from '@/api/requests'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import type { CategoryOption, CreateRequestInput, RequestStatus } from '@/types/request'
 
 const route = useRoute()
@@ -34,7 +35,7 @@ const editingId = computed(() => {
 })
 const isEditing = computed(() => editingId.value !== null)
 const pageTitle = computed(() => {
-  if (!isEditing.value) return '提交需求'
+  if (!isEditing.value) return '发起新需求'
   return requestStatus.value === 'NEED_MORE_INFO' ? '补充需求资料' : '编辑需求草稿'
 })
 
@@ -96,7 +97,7 @@ async function loadCategories() {
   try {
     categories.value = await getEnabledCategories()
   } catch {
-    ElMessage.error('需求分类加载失败，请确认后端已经启动')
+    ElMessage.error('需求分类加载失败，请稍后重试')
   } finally {
     categoriesLoading.value = false
   }
@@ -181,7 +182,7 @@ async function handleSubmit() {
     if (!editingId.value) {
       const created = await createRequest(form)
       dirty.value = false
-      ElMessage.success(`需求 ${created.requestNo} 提交成功`)
+      ElMessage.success(`需求 ${created.requestNo} 已成功发起`)
       await router.replace({ name: 'request-detail', params: { id: created.id } })
       return
     }
@@ -189,13 +190,22 @@ async function handleSubmit() {
     const updated = await updateRequest(editingId.value, form, requestVersion.value)
     const submitted = await submitRequest(editingId.value, updated.version)
     dirty.value = false
-    ElMessage.success(`需求 ${submitted.requestNo} 提交成功`)
+    ElMessage.success(
+      requestStatus.value === 'NEED_MORE_INFO'
+        ? `需求 ${submitted.requestNo} 的补充资料已提交`
+        : `需求 ${submitted.requestNo} 已成功发起`,
+    )
     await router.replace({ name: 'request-detail', params: { id: editingId.value } })
   } catch (error) {
     if (getApiStatus(error) === 409) {
       ElMessage.warning('需求状态或版本已变化，请返回详情后重试')
     } else {
-      ElMessage.error(getApiErrorMessage(error, '需求提交失败'))
+      ElMessage.error(
+        getApiErrorMessage(
+          error,
+          requestStatus.value === 'NEED_MORE_INFO' ? '资料提交失败' : '需求发起失败',
+        ),
+      )
     }
   } finally {
     submitting.value = false
@@ -242,12 +252,12 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h1>{{ pageTitle }}</h1>
-        <p>说明背景、目标与约束，帮助技术组快速完成评估。</p>
-      </div>
-    </div>
+    <AppPageHeader
+      :title="pageTitle"
+      description="说明背景、目标与约束，帮助服务团队准确评估并安排处理。"
+      eyebrow="REQUEST FORM"
+      :icon="FilePenLine"
+    />
 
     <el-card v-loading="initialLoading" class="request-form-card">
       <el-form
@@ -345,7 +355,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
           <span>03</span>
           <div>
             <strong>约束与联系</strong>
-            <small>补充预算、技术限制和有效联系方式</small>
+            <small>补充预算、实施约束和有效联系方式</small>
           </div>
         </div>
         <div class="form-grid">
@@ -366,7 +376,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
           </el-form-item>
         </div>
 
-        <el-form-item label="技术限制（可选）">
+        <el-form-item label="实施约束（可选）">
           <el-input
             v-model="form.technicalConstraints"
             type="textarea"
@@ -406,7 +416,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
             :disabled="initialLoading"
           >
             <Send :size="16" aria-hidden="true" />
-            {{ requestStatus === 'NEED_MORE_INFO' ? '重新提交' : '提交需求' }}
+            {{ requestStatus === 'NEED_MORE_INFO' ? '提交补充资料' : '确认发起' }}
           </el-button>
         </div>
       </el-form>

@@ -38,7 +38,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AuthLayout eyebrow="账号登录" title="欢迎回来" description="登录后继续处理和跟踪技术需求。">
+  <AuthLayout
+    eyebrow="账户访问"
+    title="登录服务工作台"
+    description="使用平台账号继续查看和处理需求。"
+  >
     <el-form class="login-form" label-position="top" @submit.prevent="submit">
       <el-form-item label="账号">
         <el-input v-model="form.account" autocomplete="username" placeholder="请输入账号">
@@ -61,7 +65,7 @@ onMounted(async () => {
         登录
       </el-button>
       <div v-if="registrationEnabled" class="register-entry">
-        <span>还没有需求方账号？</span>
+        <span>还没有账号？</span>
         <button type="button" @click="router.push('/register')">
           注册账号
           <ArrowRight :size="15" aria-hidden="true" />

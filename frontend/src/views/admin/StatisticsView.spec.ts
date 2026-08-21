@@ -69,6 +69,7 @@ function mountView() {
     global: {
       directives: { loading: () => undefined },
       stubs: {
+        AppPageHeader: false,
         'el-alert': { template: '<aside><slot /></aside>' },
         'el-button': ButtonStub,
         'el-card': { template: '<section><slot name="header"/><slot /></section>' },
@@ -100,7 +101,7 @@ describe('StatisticsView', () => {
     expect(statisticsMock.mock.calls[0]?.[0].from).toMatch(/^\d{4}-\d{2}-01$/)
     expect(wrapper.text()).toContain('新增需求')
     expect(wrapper.text()).toContain('平均首次响应')
-    expect(wrapper.text()).toContain('第一条评估距提交时间')
+    expect(wrapper.text()).toContain('第一条评估距发起时间')
     expect(wrapper.text()).toContain('成员负载')
   })
 

@@ -51,6 +51,7 @@ const ButtonStub = defineComponent({
 })
 
 const stubs = {
+  AppPageHeader: false,
   'el-button': ButtonStub,
   'el-card': { template: '<section><slot /></section>' },
   'el-tabs': { template: '<div><slot /></div>' },
