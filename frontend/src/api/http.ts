@@ -4,6 +4,11 @@ import type { ApiErrorPayload } from '@/types/api'
 const XSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const XSRF_HEADER_NAME = 'X-XSRF-TOKEN'
 const SAFE_HTTP_METHODS = new Set(['get', 'head', 'options', 'trace'])
+const PUBLIC_ENTRY_PATHS = new Set(['/', '/login', '/register'])
+
+export function isPublicEntryPath(pathname: string): boolean {
+  return PUBLIC_ENTRY_PATHS.has(pathname)
+}
 
 export function getCookieValue(cookieHeader: string, name: string): string | undefined {
   let value: string | undefined
@@ -108,10 +113,7 @@ export function getApiFieldErrors(error: unknown): Record<string, string> {
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (
-      error.response?.status === 401 &&
-      !['/login', '/register'].includes(window.location.pathname)
-    ) {
+    if (error.response?.status === 401 && !isPublicEntryPath(window.location.pathname)) {
       const redirect = encodeURIComponent(window.location.pathname + window.location.search)
       window.location.assign(`/login?redirect=${redirect}`)
     }

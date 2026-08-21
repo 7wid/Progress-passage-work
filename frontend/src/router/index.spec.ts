@@ -4,6 +4,18 @@ import router from './index'
 import { useAuthStore } from '@/stores/auth'
 
 describe('管理后台路由权限', () => {
+  it('根路径公开展示宣传首页', async () => {
+    setActivePinia(createPinia())
+    const authStore = useAuthStore()
+    authStore.initialized = true
+
+    await router.push('/')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('landing')
+    expect(router.currentRoute.value.meta.public).toBe(true)
+  })
+
   it('普通成员会被管理路由拦截，管理员可以进入命名路由', async () => {
     setActivePinia(createPinia())
     const authStore = useAuthStore()

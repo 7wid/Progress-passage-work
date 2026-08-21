@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getApiErrorCode, getCookieValue, getLoginErrorMessage, http } from './http'
+import {
+  getApiErrorCode,
+  getCookieValue,
+  getLoginErrorMessage,
+  http,
+  isPublicEntryPath,
+} from './http'
 
 const originalDocumentCookie = Object.getOwnPropertyDescriptor(document, 'cookie')
 
@@ -57,6 +63,15 @@ describe('api error code', () => {
       }),
     ).toBe('DATA_VERSION_CONFLICT')
     expect(getApiErrorCode(new Error('network'))).toBeUndefined()
+  })
+})
+
+describe('unauthorized redirect scope', () => {
+  it('公开宣传页和账号入口不触发强制登录跳转', () => {
+    expect(isPublicEntryPath('/')).toBe(true)
+    expect(isPublicEntryPath('/login')).toBe(true)
+    expect(isPublicEntryPath('/register')).toBe(true)
+    expect(isPublicEntryPath('/dashboard')).toBe(false)
   })
 })
 
