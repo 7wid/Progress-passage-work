@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Plus, RefreshCw, Search, Tags } from '@lucide/vue'
 import {
   changeAdminCategoryStatus,
   createAdminCategory,
@@ -10,6 +11,7 @@ import {
 import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '@/api/http'
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
 import CategoryEditorDialog from '@/components/admin/CategoryEditorDialog.vue'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import type { AdminCategory, AdminCategoryEditorValue } from '@/types/admin'
 
 type CategoryStatusFilter = 'ALL' | 'ENABLED' | 'DISABLED'
@@ -174,23 +176,36 @@ onMounted(() => void loadCategories())
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h2>分类管理</h2>
-        <span class="summary">共 {{ items.length }} 个分类，包含已停用分类</span>
-      </div>
-      <el-button type="primary" @click="openCreate">新建分类</el-button>
-    </div>
+    <AppPageHeader
+      title="分类管理"
+      description="维护需求分类、显示顺序与可用状态，列表包含已停用分类。"
+      eyebrow="ADMIN"
+      :icon="Tags"
+      tone="orange"
+    >
+      <template #meta
+        ><span class="summary">共 {{ items.length }} 个分类</span></template
+      >
+      <template #actions>
+        <el-button type="primary" @click="openCreate">
+          <Plus :size="16" aria-hidden="true" />新建分类
+        </el-button>
+      </template>
+    </AppPageHeader>
 
-    <el-card>
+    <el-card class="filter-card" shadow="never">
       <div class="filters">
-        <el-input v-model="keyword" clearable maxlength="80" placeholder="按分类名称筛选" />
+        <el-input v-model="keyword" clearable maxlength="80" placeholder="按分类名称筛选">
+          <template #prefix><Search :size="16" aria-hidden="true" /></template>
+        </el-input>
         <el-select v-model="statusFilter">
           <el-option label="全部状态" value="ALL" />
           <el-option label="已启用" value="ENABLED" />
           <el-option label="已停用" value="DISABLED" />
         </el-select>
-        <el-button :loading="loading" @click="loadCategories">刷新</el-button>
+        <el-button :loading="loading" @click="loadCategories">
+          <RefreshCw :size="16" aria-hidden="true" />刷新
+        </el-button>
       </div>
     </el-card>
 
@@ -200,7 +215,13 @@ onMounted(() => void loadCategories())
       </template>
     </el-alert>
 
-    <el-card>
+    <el-card class="result-card">
+      <template #header>
+        <div class="result-heading">
+          <span><Tags :size="17" aria-hidden="true" />分类清单</span>
+          <small>当前显示 {{ filteredItems.length }} 项</small>
+        </div>
+      </template>
       <el-table
         v-loading="loading"
         :data="filteredItems"
@@ -260,7 +281,12 @@ onMounted(() => void loadCategories())
 
 <style scoped>
 .summary {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.filter-card {
+  border-left: 3px solid var(--color-warning);
 }
 
 .filters {
@@ -271,6 +297,38 @@ onMounted(() => void loadCategories())
 
 .filters :deep(.el-select) {
   width: 100%;
+}
+
+.filters :deep(.el-button span),
+.result-heading,
+.result-heading > span {
+  display: flex;
+  align-items: center;
+}
+
+.filters :deep(.el-button span),
+.result-heading > span {
+  gap: 7px;
+}
+
+.result-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.result-heading > span {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+
+.result-heading small {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.result-card :deep(.el-card__body) {
+  padding: 0;
 }
 
 @media (max-width: 640px) {

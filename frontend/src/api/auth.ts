@@ -1,17 +1,29 @@
-import { http } from './http'
+import { getApiStatus, http } from './http'
 import type { ApiResponse } from '@/types/api'
 import type { CurrentUser, LoginInput, RegisterInput, RegistrationStatus } from '@/types/auth'
 import type { UserProfile } from '@/types/profile'
 
-export async function login(input: LoginInput): Promise<CurrentUser> {
+async function withFreshCsrf<T>(request: () => Promise<T>): Promise<T> {
   await http.get<ApiResponse<string>>('/auth/csrf')
-  const response = await http.post<ApiResponse<CurrentUser>>('/auth/login', input)
+  try {
+    return await request()
+  } catch (error) {
+    if (getApiStatus(error) !== 403) throw error
+
+    await http.get<ApiResponse<string>>('/auth/csrf')
+    return request()
+  }
+}
+
+export async function login(input: LoginInput): Promise<CurrentUser> {
+  const response = await withFreshCsrf(() =>
+    http.post<ApiResponse<CurrentUser>>('/auth/login', input),
+  )
   return response.data.data
 }
 
 export async function logout(): Promise<void> {
-  await http.get<ApiResponse<string>>('/auth/csrf')
-  await http.post('/auth/logout')
+  await withFreshCsrf(() => http.post('/auth/logout'))
 }
 
 export async function getCurrentUser(): Promise<CurrentUser> {
@@ -25,14 +37,15 @@ export async function getRegistrationStatus(): Promise<RegistrationStatus> {
 }
 
 export async function register(input: RegisterInput): Promise<UserProfile> {
-  await http.get<ApiResponse<string>>('/auth/csrf')
-  const response = await http.post<ApiResponse<UserProfile>>('/users/register', {
-    account: input.account.trim(),
-    password: input.password,
-    displayName: input.displayName.trim(),
-    email: input.email.trim(),
-    phone: input.phone.trim() || null,
-    department: input.department.trim() || null,
-  })
+  const response = await withFreshCsrf(() =>
+    http.post<ApiResponse<UserProfile>>('/users/register', {
+      account: input.account.trim(),
+      password: input.password,
+      displayName: input.displayName.trim(),
+      email: input.email.trim(),
+      phone: input.phone.trim() || null,
+      department: input.department.trim() || null,
+    }),
+  )
   return response.data.data
 }

@@ -22,6 +22,7 @@ function mountView() {
     global: {
       directives: { loading: () => undefined },
       stubs: {
+        AppPageHeader: false,
         'el-alert': { template: '<aside><slot /></aside>' },
         'el-button': ButtonStub,
         'el-card': { template: '<section><slot /></section>' },

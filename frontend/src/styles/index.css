@@ -314,11 +314,15 @@ svg {
   color: var(--color-text-primary);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-base) ease;
 }
 
 .el-card__header {
   padding: 17px 20px;
   color: var(--color-text-primary);
+  background: #fbfcfe;
   border-bottom-color: var(--color-border-subtle);
   font-size: 15px;
   font-weight: 620;
@@ -401,6 +405,10 @@ svg {
   cursor: default;
 }
 
+.el-table__inner-wrapper::before {
+  background-color: var(--color-border-subtle);
+}
+
 .el-table__empty-text {
   color: var(--color-text-tertiary);
 }
@@ -450,8 +458,37 @@ svg {
 
 .el-dialog,
 .el-message-box {
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 48px rgb(15 23 42 / 16%);
+}
+
+.el-dialog__header {
+  padding: 19px 22px 16px;
+  margin: 0;
+  background: #fbfcfe;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.el-dialog__title {
+  color: var(--color-text-primary);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.el-dialog__body {
+  padding: 22px;
+}
+
+.el-dialog__footer {
+  padding: 15px 22px;
+  background: #fbfcfe;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.el-dialog__footer .el-button {
+  margin-left: 8px;
 }
 
 .el-overlay {
@@ -488,6 +525,21 @@ svg {
 
 .el-empty__description p {
   color: var(--color-text-secondary);
+}
+
+.el-divider {
+  border-top-color: var(--color-border-subtle);
+}
+
+.el-collapse {
+  --el-collapse-border-color: var(--color-border-subtle);
+  --el-collapse-header-bg-color: transparent;
+  --el-collapse-content-bg-color: transparent;
+}
+
+.el-loading-mask {
+  background-color: rgb(255 255 255 / 80%);
+  backdrop-filter: blur(1px);
 }
 
 @media (max-width: 760px) {

@@ -1,27 +1,32 @@
 <script setup lang="ts">
-import { computed, markRaw, ref, watch } from 'vue'
+import { computed, markRaw, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Component } from 'vue'
 import {
   BarChart3,
   Bell,
-  Braces,
   ChevronDown,
   ClipboardList,
   FolderKanban,
   LayoutDashboard,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   ScrollText,
   Search,
   Settings,
   Tags,
   UsersRound,
+  Workflow,
   X,
 } from '@lucide/vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import GlobalCommandPalette from '@/components/common/GlobalCommandPalette.vue'
+import type { CommandNavigationItem } from '@/components/common/GlobalCommandPalette.vue'
 import NotificationBell from '@/components/notification/NotificationBell.vue'
+import { PRODUCT_NAME, PRODUCT_NAME_EN } from '@/config/product'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 
@@ -42,7 +47,10 @@ const route = useRoute()
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
 const mobileNavOpen = ref(false)
-const globalSearch = ref('')
+const sidebarCollapsed = ref(false)
+const commandPaletteOpen = ref(false)
+
+const SIDEBAR_STORAGE_KEY = 'request-hub-sidebar-collapsed'
 
 const isRequester = computed(() => authStore.user?.role === 'REQUESTER')
 const isMember = computed(() => authStore.user?.role === 'MEMBER')
@@ -55,9 +63,9 @@ const roleLabel = computed(() => {
     case 'ADMIN':
       return '系统管理员'
     case 'MEMBER':
-      return '技术组成员'
+      return '服务团队成员'
     default:
-      return '需求方'
+      return '需求申请人'
   }
 })
 
@@ -67,16 +75,16 @@ const userInitial = computed(
 
 const navigationGroups = computed<NavigationGroup[]>(() => [
   {
-    label: '工作区',
+    label: '需求中心',
     items: [
-      { label: '概览', to: '/dashboard', icon: markRaw(LayoutDashboard) },
+      { label: '首页', to: '/dashboard', icon: markRaw(LayoutDashboard) },
       {
-        label: isRequester.value ? '我的需求' : '需求池',
+        label: isRequester.value ? '我的需求' : '全部需求',
         to: '/requests',
         icon: markRaw(ClipboardList),
       },
       {
-        label: '技术组工作台',
+        label: '服务工作台',
         to: '/workspace',
         icon: markRaw(FolderKanban),
         visible: isTeam.value,
@@ -84,7 +92,7 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
     ],
   },
   {
-    label: '组织管理',
+    label: '平台管理',
     items: [
       {
         label: '成员管理',
@@ -108,7 +116,7 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
     ],
   },
   {
-    label: '个人',
+    label: '账号',
     items: [{ label: '个人设置', to: '/settings', icon: markRaw(Settings) }],
   },
 ])
@@ -119,18 +127,36 @@ const visibleNavigationGroups = computed(() =>
     .filter((group) => group.items.length > 0),
 )
 
+const commandNavigationItems = computed<CommandNavigationItem[]>(() =>
+  visibleNavigationGroups.value.flatMap((group) =>
+    group.items.map((item) => ({
+      label: item.label,
+      group: group.label,
+      to: item.to,
+      icon: item.icon,
+    })),
+  ),
+)
+
 const currentSection = computed(() => {
   const item = visibleNavigationGroups.value
     .flatMap((group) => group.items)
     .filter((entry) => route.path === entry.to || route.path.startsWith(`${entry.to}/`))
     .sort((a, b) => b.to.length - a.to.length)[0]
-  if (route.path === '/requests/new') return '提交需求'
-  return item?.label ?? '需求协作'
+  if (route.path === '/requests/new') return '发起需求'
+  return item?.label ?? PRODUCT_NAME
 })
 
-function submitGlobalSearch() {
-  const keyword = globalSearch.value.trim()
-  void router.push({ name: 'request-list', query: keyword ? { keyword } : {} })
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed.value))
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
+    event.preventDefault()
+    commandPaletteOpen.value = !commandPaletteOpen.value
+  }
 }
 
 async function handleLogout() {
@@ -151,18 +177,35 @@ watch(
     mobileNavOpen.value = false
   },
 )
+
+onMounted(() => {
+  sidebarCollapsed.value = window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true'
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
+})
 </script>
 
 <template>
   <a class="skip-link" href="#main-content">跳到主要内容</a>
-  <div class="app-shell" :class="{ 'app-shell--nav-open': mobileNavOpen }">
+  <div
+    class="app-shell"
+    :class="{
+      'app-shell--nav-open': mobileNavOpen,
+      'app-shell--sidebar-collapsed': sidebarCollapsed,
+    }"
+  >
     <aside id="primary-navigation" class="app-sidebar" aria-label="主导航">
       <div class="app-sidebar__brand">
-        <RouterLink to="/dashboard" class="brand-link" aria-label="技术需求管理首页">
-          <span class="brand-mark" aria-hidden="true"><Braces :size="20" :stroke-width="2" /></span>
-          <span class="brand-copy">
-            <strong>技术需求管理</strong>
-            <small>TECH REQUESTS</small>
+        <RouterLink to="/dashboard" class="brand-link" :aria-label="`${PRODUCT_NAME}首页`">
+          <span class="brand-mark" aria-hidden="true">
+            <Workflow :size="20" :stroke-width="2" />
+          </span>
+          <span class="brand-copy" :aria-hidden="sidebarCollapsed">
+            <strong>{{ PRODUCT_NAME }}</strong>
+            <small>{{ PRODUCT_NAME_EN }}</small>
           </span>
         </RouterLink>
         <button
@@ -179,12 +222,34 @@ watch(
       <nav class="sidebar-nav">
         <section v-for="group in visibleNavigationGroups" :key="group.label" class="nav-group">
           <h2>{{ group.label }}</h2>
-          <RouterLink v-for="item in group.items" :key="item.to" :to="item.to" class="nav-item">
+          <RouterLink
+            v-for="item in group.items"
+            :key="item.to"
+            :to="item.to"
+            class="nav-item"
+            :aria-label="sidebarCollapsed ? item.label : undefined"
+            :title="sidebarCollapsed ? item.label : undefined"
+          >
             <component :is="item.icon" :size="19" :stroke-width="1.8" aria-hidden="true" />
             <span>{{ item.label }}</span>
           </RouterLink>
         </section>
       </nav>
+
+      <div class="sidebar-footer">
+        <button
+          type="button"
+          class="sidebar-toggle"
+          :aria-label="sidebarCollapsed ? '展开侧栏' : '收起侧栏'"
+          :title="sidebarCollapsed ? '展开侧栏' : '收起侧栏'"
+          :aria-expanded="!sidebarCollapsed"
+          @click="toggleSidebar"
+        >
+          <PanelLeftOpen v-if="sidebarCollapsed" :size="18" aria-hidden="true" />
+          <PanelLeftClose v-else :size="18" aria-hidden="true" />
+          <span>收起侧栏</span>
+        </button>
+      </div>
     </aside>
 
     <button
@@ -212,18 +277,16 @@ watch(
           <span>{{ currentSection }}</span>
         </div>
 
-        <form class="global-search" role="search" @submit.prevent="submitGlobalSearch">
+        <button
+          type="button"
+          class="global-search"
+          aria-haspopup="dialog"
+          :aria-expanded="commandPaletteOpen"
+          @click="commandPaletteOpen = true"
+        >
           <Search :size="17" aria-hidden="true" />
-          <label class="sr-only" for="global-search-input">全局搜索需求</label>
-          <input
-            id="global-search-input"
-            v-model="globalSearch"
-            type="search"
-            autocomplete="off"
-            placeholder="搜索需求编号或标题"
-          />
-          <kbd>Enter</kbd>
-        </form>
+          <span>搜索需求或功能</span>
+        </button>
 
         <div class="app-header__actions">
           <el-button
@@ -233,7 +296,7 @@ watch(
             @click="router.push('/requests/new')"
           >
             <Plus :size="17" aria-hidden="true" />
-            <span>提交需求</span>
+            <span>发起需求</span>
           </el-button>
           <NotificationBell />
 
@@ -275,6 +338,12 @@ watch(
       </main>
     </div>
   </div>
+
+  <GlobalCommandPalette
+    v-model="commandPaletteOpen"
+    :navigation-items="commandNavigationItems"
+    :can-create-request="canCreateRequest"
+  />
 </template>
 
 <style scoped>
@@ -283,6 +352,10 @@ watch(
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100dvh;
   background: var(--color-background);
+}
+
+.app-shell--sidebar-collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
 }
 
 .app-sidebar {
@@ -294,8 +367,9 @@ watch(
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border-subtle);
+  color: #e2e8f0;
+  background: #111827;
+  border-right: 1px solid #1f2937;
 }
 
 .app-sidebar__brand {
@@ -305,7 +379,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   padding: 0 18px;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
 }
 
 .brand-link {
@@ -335,13 +409,13 @@ watch(
 }
 
 .brand-copy strong {
-  color: var(--color-text-primary);
+  color: #f8fafc;
   font-size: 15px;
   font-weight: 650;
 }
 
 .brand-copy small {
-  color: var(--color-text-tertiary);
+  color: #94a3b8;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0;
@@ -368,7 +442,7 @@ watch(
 
 .nav-group h2 {
   margin: 0 10px 6px;
-  color: var(--color-text-tertiary);
+  color: #7f8da3;
   font-size: 11px;
   font-weight: 650;
   line-height: 20px;
@@ -382,7 +456,7 @@ watch(
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  color: var(--color-text-secondary);
+  color: #cbd5e1;
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 500;
@@ -393,13 +467,13 @@ watch(
 }
 
 .nav-item:hover {
-  color: var(--color-text-primary);
-  background: var(--color-surface-hover);
+  color: #ffffff;
+  background: rgb(255 255 255 / 7%);
 }
 
 .nav-item.router-link-active {
-  color: var(--color-primary-strong);
-  background: var(--color-primary-soft);
+  color: #ffffff;
+  background: rgb(37 99 235 / 28%);
   font-weight: 600;
 }
 
@@ -416,6 +490,70 @@ watch(
 
 .nav-item svg {
   flex: 0 0 auto;
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.sidebar-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  color: #94a3b8;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  white-space: nowrap;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.sidebar-toggle:hover {
+  color: #ffffff;
+  background: rgb(255 255 255 / 7%);
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__brand {
+  justify-content: center;
+  padding-inline: 12px;
+}
+
+.app-shell--sidebar-collapsed .brand-copy,
+.app-shell--sidebar-collapsed .nav-item span,
+.app-shell--sidebar-collapsed .sidebar-toggle span {
+  display: none;
+}
+
+.app-shell--sidebar-collapsed .sidebar-nav {
+  gap: 18px;
+  padding-inline: 10px;
+}
+
+.app-shell--sidebar-collapsed .nav-group h2 {
+  width: 28px;
+  height: 1px;
+  margin: 3px auto 7px;
+  overflow: hidden;
+  color: transparent;
+  background: rgb(255 255 255 / 12%);
+}
+
+.app-shell--sidebar-collapsed .nav-item,
+.app-shell--sidebar-collapsed .sidebar-toggle {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.app-shell--sidebar-collapsed .nav-item.router-link-active::before {
+  top: 9px;
+  bottom: 9px;
 }
 
 .app-workspace {
@@ -463,10 +601,12 @@ watch(
 .global-search {
   display: flex;
   height: 40px;
+  width: 100%;
   align-items: center;
   gap: 9px;
   padding: 0 12px;
   color: var(--color-text-tertiary);
+  text-align: left;
   background: var(--color-surface-secondary);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -476,40 +616,22 @@ watch(
     box-shadow var(--motion-fast) ease;
 }
 
-.global-search:focus-within {
+.global-search:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border);
+}
+
+.global-search:focus-visible {
   background: var(--color-surface);
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
-.global-search input {
+.global-search span {
   min-width: 0;
   flex: 1;
-  color: var(--color-text-primary);
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font: inherit;
   font-size: 14px;
-}
-
-.global-search input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.global-search input::-webkit-search-cancel-button {
-  cursor: pointer;
-}
-
-.global-search kbd {
-  padding: 2px 6px;
-  color: var(--color-text-tertiary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 5px;
-  font-family: inherit;
-  font-size: 10px;
-  line-height: 16px;
 }
 
 .app-header__actions {
@@ -615,6 +737,35 @@ watch(
     display: block;
   }
 
+  .app-shell--sidebar-collapsed .brand-copy,
+  .app-shell--sidebar-collapsed .nav-item span {
+    display: grid;
+  }
+
+  .app-shell--sidebar-collapsed .app-sidebar__brand {
+    justify-content: space-between;
+    padding-inline: 18px;
+  }
+
+  .app-shell--sidebar-collapsed .sidebar-nav {
+    gap: 24px;
+    padding: 22px 12px;
+  }
+
+  .app-shell--sidebar-collapsed .nav-group h2 {
+    width: auto;
+    height: auto;
+    margin: 0 10px 6px;
+    overflow: visible;
+    color: #7f8da3;
+    background: transparent;
+  }
+
+  .app-shell--sidebar-collapsed .nav-item {
+    justify-content: flex-start;
+    padding: 9px 12px;
+  }
+
   .app-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
@@ -634,7 +785,7 @@ watch(
     height: 40px;
     flex: 0 0 40px;
     place-items: center;
-    color: var(--color-text-secondary);
+    color: #cbd5e1;
     background: transparent;
     border: 0;
     border-radius: var(--radius-md);
@@ -660,6 +811,10 @@ watch(
   }
 
   .global-search {
+    display: none;
+  }
+
+  .sidebar-footer {
     display: none;
   }
 

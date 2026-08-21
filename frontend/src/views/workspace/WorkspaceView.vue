@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { ArrowRight, ListChecks, RefreshCw } from '@lucide/vue'
+import { ArrowRight, BriefcaseBusiness, ListChecks, RefreshCw } from '@lucide/vue'
 import { useRouter } from 'vue-router'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { RequestListQuery, RequestSummary, RequestUrgency } from '@/types/request'
 
@@ -124,16 +125,20 @@ onMounted(loadQueue)
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h1>技术组工作台</h1>
-        <p>集中处理评估、分配、执行与验收队列。</p>
-      </div>
-      <el-button :loading="loading" @click="loadQueue">
-        <RefreshCw :size="17" aria-hidden="true" />
-        刷新队列
-      </el-button>
-    </div>
+    <AppPageHeader
+      title="服务工作台"
+      description="集中处理评估、分配、执行与验收队列。"
+      eyebrow="WORKSPACE"
+      :icon="BriefcaseBusiness"
+      tone="green"
+    >
+      <template #actions>
+        <el-button :loading="loading" @click="loadQueue">
+          <RefreshCw :size="17" aria-hidden="true" />
+          刷新队列
+        </el-button>
+      </template>
+    </AppPageHeader>
 
     <el-tabs v-model="activeQueue" class="queue-tabs">
       <el-tab-pane label="待评估" name="PENDING_REVIEW" />
@@ -173,7 +178,7 @@ onMounted(loadQueue)
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
         <el-table-column prop="categoryName" label="分类" width="140" />
-        <el-table-column prop="creatorName" label="创建人" width="120" />
+        <el-table-column prop="creatorName" label="申请人" width="120" />
         <el-table-column label="紧急程度" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.urgency" :type="urgencyMap[row.urgency as RequestUrgency].type">
@@ -188,7 +193,7 @@ onMounted(loadQueue)
         <el-table-column label="期望日期" width="120">
           <template #default="{ row }">{{ row.expectedDeadline ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="提交时间" width="170">
+        <el-table-column label="发起时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="110" fixed="right">
@@ -215,12 +220,6 @@ onMounted(loadQueue)
 </template>
 
 <style scoped>
-.page__header :deep(.el-button span) {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
 .queue-tabs {
   padding: 0 4px;
 }

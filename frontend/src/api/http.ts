@@ -1,12 +1,46 @@
 import axios from 'axios'
 import type { ApiErrorPayload } from '@/types/api'
 
+const XSRF_COOKIE_NAME = 'XSRF-TOKEN'
+const XSRF_HEADER_NAME = 'X-XSRF-TOKEN'
+const SAFE_HTTP_METHODS = new Set(['get', 'head', 'options', 'trace'])
+
+export function getCookieValue(cookieHeader: string, name: string): string | undefined {
+  let value: string | undefined
+
+  for (const segment of cookieHeader.split(';')) {
+    const cookie = segment.trim()
+    const separator = cookie.indexOf('=')
+    if (separator < 0 || cookie.slice(0, separator).trim() !== name) continue
+
+    const encodedValue = cookie.slice(separator + 1)
+    try {
+      value = decodeURIComponent(encodedValue)
+    } catch {
+      value = encodedValue
+    }
+  }
+
+  return value
+}
+
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 15_000,
   withCredentials: true,
-  xsrfCookieName: 'XSRF-TOKEN',
-  xsrfHeaderName: 'X-XSRF-TOKEN',
+  xsrfCookieName: XSRF_COOKIE_NAME,
+  xsrfHeaderName: XSRF_HEADER_NAME,
+  withXSRFToken: false,
+})
+
+http.interceptors.request.use((config) => {
+  const method = config.method?.toLocaleLowerCase() ?? 'get'
+  if (SAFE_HTTP_METHODS.has(method) || typeof document === 'undefined') return config
+
+  // 同名 Cookie 按路径长度排序，根路径令牌位于最后；旧的窄路径 Cookie 不应覆盖它。
+  const token = getCookieValue(document.cookie, XSRF_COOKIE_NAME)
+  if (token) config.headers.set(XSRF_HEADER_NAME, token)
+  return config
 })
 
 export function getLoginErrorMessage(error: unknown): string {
@@ -15,7 +49,7 @@ export function getLoginErrorMessage(error: unknown): string {
   }
 
   if (!error.response) {
-    return '无法连接后端服务，请确认后端已经启动'
+    return '暂时无法连接系统服务，请稍后重试'
   }
 
   switch (error.response.status) {
@@ -24,12 +58,12 @@ export function getLoginErrorMessage(error: unknown): string {
     case 401:
       return '账号或密码错误'
     case 403:
-      return '登录安全校验失败，请刷新页面后重试'
+      return error.response.data?.error?.message ?? '登录安全校验失败，请刷新页面后重试'
     case 404:
-      return '登录接口不存在，请检查后端端口和前端代理配置'
+      return '登录服务暂时不可用，请稍后重试'
     default:
       if (error.response.status >= 500) {
-        return '服务器暂时不可用，请查看后端日志'
+        return '系统服务暂时不可用，请稍后重试'
       }
       return error.response.data?.error?.message ?? '登录失败，请稍后重试'
   }
@@ -49,7 +83,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (!error.response) {
-    return '无法连接后端服务，请确认后端已经启动'
+    return '暂时无法连接系统服务，请稍后重试'
   }
 
   return error.response.data?.error?.message ?? fallback

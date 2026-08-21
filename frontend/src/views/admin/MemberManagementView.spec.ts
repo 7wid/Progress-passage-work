@@ -82,6 +82,7 @@ function mountView() {
       plugins: [pinia],
       directives: { loading: () => undefined },
       stubs: {
+        AppPageHeader: false,
         'el-alert': true,
         'el-button': ButtonStub,
         'el-card': { template: '<section><slot /></section>' },

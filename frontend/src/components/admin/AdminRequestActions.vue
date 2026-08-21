@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { CircleX, RotateCcw, ShieldAlert } from '@lucide/vue'
 import { cancelRequestAsAdmin, reopenRequestAsAdmin } from '@/api/adminRequests'
 import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { AdminRequestActionResult } from '@/types/admin'
 import type { RequestStatus } from '@/types/request'
 
@@ -91,7 +93,15 @@ async function submitAction(reason: string): Promise<void> {
 </script>
 
 <template>
-  <el-card v-if="hasAction" header="管理员异常处理" class="admin-actions">
+  <el-card v-if="hasAction" class="admin-actions">
+    <template #header>
+      <AppSectionHeader
+        title="管理员异常处理"
+        description="仅用于已确认的异常业务状态"
+        :icon="ShieldAlert"
+        tone="red"
+      />
+    </template>
     <el-alert
       type="warning"
       :closable="false"
@@ -101,9 +111,11 @@ async function submitAction(reason: string): Promise<void> {
 
     <div class="action-buttons">
       <el-button v-if="canCancel" type="danger" plain @click="openAction('CANCEL')">
+        <CircleX :size="16" aria-hidden="true" />
         管理员取消需求
       </el-button>
       <el-button v-if="canReopen" type="primary" plain @click="openAction('REOPEN')">
+        <RotateCcw :size="16" aria-hidden="true" />
         重新开启需求
       </el-button>
     </div>
@@ -131,5 +143,15 @@ async function submitAction(reason: string): Promise<void> {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 16px;
+}
+
+.action-buttons :deep(.el-button) {
+  margin: 0;
+}
+
+.action-buttons :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 </style>

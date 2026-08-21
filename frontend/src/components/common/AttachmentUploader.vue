@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Upload } from '@lucide/vue'
 import {
   ATTACHMENT_ACCEPT,
   deletePendingAttachment,
@@ -225,6 +226,7 @@ async function removeAttachment(attachment: AttachmentRecord): Promise<void> {
         @change="handleFileSelection"
       />
       <el-button :disabled="selectionDisabled" @click="inputRef?.click()">
+        <Upload :size="16" aria-hidden="true" />
         选择并上传附件
       </el-button>
       <span>单个不超过 20 MB，每组最多 5 个；仅支持常用文档、图片和 ZIP。</span>
@@ -246,8 +248,9 @@ async function removeAttachment(attachment: AttachmentRecord): Promise<void> {
 }
 .task-item {
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: #fbfcfe;
 }
 .task-heading,
 .task-error,
@@ -258,15 +261,24 @@ async function removeAttachment(attachment: AttachmentRecord): Promise<void> {
   gap: 10px;
 }
 .task-error {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 .upload-actions {
   justify-content: flex-start;
   flex-wrap: wrap;
+  padding: 12px;
+  border: 1px dashed #aebbd0;
+  border-radius: var(--radius-md);
+  background: #fbfcfe;
 }
 .upload-actions span {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
   font-size: 12px;
+}
+.upload-actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 .visually-hidden {
   position: absolute;

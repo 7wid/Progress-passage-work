@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { RotateCcw, Search, UserPlus, UsersRound } from '@lucide/vue'
 import {
   changeAdminMemberStatus,
   createAdminMember,
@@ -12,6 +13,7 @@ import {
 import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '@/api/http'
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
 import MemberEditorDialog from '@/components/admin/MemberEditorDialog.vue'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import type {
   AdminMember,
@@ -169,7 +171,7 @@ async function submitEditor(value: AdminMemberEditorValue): Promise<void> {
       const confirmationMessage = createsAdmin
         ? `确认创建管理员账号“${value.displayName.trim()}”吗？该账号将拥有成员、分类和异常需求管理权限。`
         : member
-          ? `确认将“${member.displayName}”的角色由${member.role === 'ADMIN' ? '管理员' : '技术组成员'}调整为${value.role === 'ADMIN' ? '管理员' : '技术组成员'}吗？`
+          ? `确认将“${member.displayName}”的角色由${member.role === 'ADMIN' ? '管理员' : '服务团队成员'}调整为${value.role === 'ADMIN' ? '管理员' : '服务团队成员'}吗？`
           : ''
       await ElMessageBox.confirm(
         confirmationMessage,
@@ -282,19 +284,26 @@ onMounted(() => {
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h2>成员管理</h2>
-        <span class="summary">共 {{ total }} 个技术组账号</span>
-      </div>
-      <el-button
-        type="primary"
-        :disabled="skillsLoading || Boolean(skillsError)"
-        @click="openCreate"
+    <AppPageHeader
+      title="成员管理"
+      description="维护服务团队账号、角色、技能与在岗状态。"
+      eyebrow="ADMIN"
+      :icon="UsersRound"
+      tone="green"
+    >
+      <template #meta
+        ><span class="summary">共 {{ total }} 个服务团队账号</span></template
       >
-        新建成员
-      </el-button>
-    </div>
+      <template #actions>
+        <el-button
+          type="primary"
+          :disabled="skillsLoading || Boolean(skillsError)"
+          @click="openCreate"
+        >
+          <UserPlus :size="16" aria-hidden="true" />新建成员
+        </el-button>
+      </template>
+    </AppPageHeader>
 
     <el-alert v-if="skillsError" type="warning" :closable="false" :title="skillsError">
       <template #default>
@@ -302,7 +311,7 @@ onMounted(() => {
       </template>
     </el-alert>
 
-    <el-card>
+    <el-card class="filter-card" shadow="never">
       <el-form class="filters" label-position="top" @submit.prevent="search">
         <el-form-item label="关键词">
           <el-input
@@ -314,7 +323,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="filters.role" clearable placeholder="全部角色">
-            <el-option label="技术组成员" value="MEMBER" />
+            <el-option label="服务团队成员" value="MEMBER" />
             <el-option label="管理员" value="ADMIN" />
           </el-select>
         </el-form-item>
@@ -325,8 +334,12 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <div class="filter-actions">
-          <el-button type="primary" native-type="submit">查询</el-button>
-          <el-button @click="resetFilters">重置</el-button>
+          <el-button type="primary" native-type="submit">
+            <Search :size="16" aria-hidden="true" />查询
+          </el-button>
+          <el-button @click="resetFilters">
+            <RotateCcw :size="16" aria-hidden="true" />重置
+          </el-button>
         </div>
       </el-form>
     </el-card>
@@ -337,14 +350,20 @@ onMounted(() => {
       </template>
     </el-alert>
 
-    <el-card>
+    <el-card class="result-card">
+      <template #header>
+        <div class="result-heading">
+          <span><UsersRound :size="17" aria-hidden="true" />成员清单</span>
+          <small>第 {{ page }} 页</small>
+        </div>
+      </template>
       <el-table v-loading="loading" :data="items" row-key="id" empty-text="暂无成员账号">
         <el-table-column prop="account" label="账号" min-width="130" />
         <el-table-column prop="displayName" label="显示名称" min-width="120" />
         <el-table-column label="角色" width="110">
           <template #default="{ row }">
             <el-tag :type="row.role === 'ADMIN' ? 'danger' : 'primary'">
-              {{ row.role === 'ADMIN' ? '管理员' : '技术组成员' }}
+              {{ row.role === 'ADMIN' ? '管理员' : '服务团队成员' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -448,7 +467,15 @@ onMounted(() => {
 <style scoped>
 .summary,
 .secondary-text {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
+}
+
+.summary {
+  font-size: 12px;
+}
+
+.filter-card {
+  border-left: 3px solid var(--color-success);
 }
 
 .filters {
@@ -471,6 +498,42 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.filter-actions :deep(.el-button) {
+  margin: 0;
+}
+
+.filter-actions :deep(.el-button span),
+.result-heading,
+.result-heading > span {
+  display: flex;
+  align-items: center;
+}
+
+.filter-actions :deep(.el-button span),
+.result-heading > span {
+  gap: 7px;
+}
+
+.result-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.result-heading > span {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+
+.result-heading small {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.result-card :deep(.el-card__body) {
+  padding: 0 0 16px;
 }
 
 .pagination {

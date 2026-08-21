@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { BadgeCheck, Braces, ClipboardList, Code2 } from '@lucide/vue'
+import { BadgeCheck, ClipboardList, MessageSquare, Workflow } from '@lucide/vue'
+import { PRODUCT_NAME, PRODUCT_NAME_EN } from '@/config/product'
 
 withDefaults(
   defineProps<{
@@ -17,35 +18,40 @@ withDefaults(
     <section class="auth-layout__brand" aria-label="产品信息">
       <div class="auth-brand-lockup">
         <span class="auth-brand-mark" aria-hidden="true">
-          <Braces :size="23" :stroke-width="2" />
+          <Workflow :size="23" :stroke-width="2" />
         </span>
         <span>
-          <strong>技术需求管理</strong>
-          <small>TECH REQUESTS</small>
+          <strong>{{ PRODUCT_NAME }}</strong>
+          <small>{{ PRODUCT_NAME_EN }}</small>
         </span>
       </div>
 
       <div class="auth-brand-message">
-        <span>REQUEST · BUILD · DELIVER</span>
-        <h2>让每一次需求流转<br />清晰、有序、可追踪</h2>
-        <p>计算机技术组协作平台</p>
-        <div class="auth-flow" aria-hidden="true">
-          <span class="auth-flow__node auth-flow__node--request">
-            <ClipboardList :size="21" :stroke-width="1.8" />
-          </span>
-          <span class="auth-flow__line" />
-          <span class="auth-flow__node auth-flow__node--build">
-            <Code2 :size="21" :stroke-width="1.8" />
-          </span>
-          <span class="auth-flow__line" />
-          <span class="auth-flow__node auth-flow__node--done">
-            <BadgeCheck :size="21" :stroke-width="1.8" />
-          </span>
-        </div>
+        <span>统一需求服务入口</span>
+        <h2>从需求提出到成果验收，每一步都有明确记录。</h2>
+        <p>面向需求申请人与技术服务团队的协作工作台。</p>
+        <ol class="auth-flow" aria-label="需求服务流程">
+          <li>
+            <span class="auth-flow__node"><ClipboardList :size="19" :stroke-width="1.8" /></span>
+            <span><small>01</small><strong>需求发起</strong></span>
+          </li>
+          <li>
+            <span class="auth-flow__node auth-flow__node--build">
+              <MessageSquare :size="19" :stroke-width="1.8" />
+            </span>
+            <span><small>02</small><strong>协同处理</strong></span>
+          </li>
+          <li>
+            <span class="auth-flow__node auth-flow__node--done">
+              <BadgeCheck :size="19" :stroke-width="1.8" />
+            </span>
+            <span><small>03</small><strong>成果验收</strong></span>
+          </li>
+        </ol>
       </div>
 
       <div class="auth-brand-footer">
-        <span>内部工作空间</span>
+        <span>需求服务入口</span>
         <span>2026</span>
       </div>
     </section>
@@ -80,32 +86,7 @@ withDefaults(
   padding: clamp(32px, 5vw, 64px);
   overflow: hidden;
   color: #f8fbff;
-  background: #1e40af;
-}
-
-.auth-layout__brand::before,
-.auth-layout__brand::after {
-  position: absolute;
-  content: '';
-  pointer-events: none;
-}
-
-.auth-layout__brand::before {
-  top: 24%;
-  right: -190px;
-  width: 360px;
-  height: 360px;
-  border: 1px solid rgb(255 255 255 / 11%);
-  transform: rotate(18deg);
-}
-
-.auth-layout__brand::after {
-  right: 15%;
-  bottom: -120px;
-  width: 120px;
-  height: 360px;
-  background: rgb(59 130 246 / 20%);
-  transform: rotate(32deg);
+  background: #163d68;
 }
 
 .auth-layout__brand > * {
@@ -147,29 +128,33 @@ withDefaults(
 }
 
 .auth-brand-message {
-  max-width: 560px;
+  max-width: 520px;
   animation: auth-copy-enter 420ms var(--ease-standard) both;
 }
 
 .auth-brand-message > span {
   display: block;
-  margin-bottom: 18px;
-  color: #93c5fd;
-  font-size: 11px;
+  margin-bottom: 16px;
+  color: #a5d8ff;
+  font-size: 12px;
   font-weight: 650;
 }
 
 .auth-brand-message h2 {
   margin: 0;
-  font-size: 58px;
+  max-width: 12em;
+  font-size: clamp(38px, 3.4vw, 46px);
   font-weight: 650;
-  line-height: 1.18;
+  line-height: 1.36;
+  text-wrap: balance;
 }
 
 .auth-brand-message p {
-  margin: 18px 0 0;
-  color: #dbeafe;
-  font-size: 15px;
+  max-width: 30em;
+  margin: 20px 0 0;
+  color: #d9e9f7;
+  font-size: 16px;
+  line-height: 1.75;
 }
 
 .auth-brand-footer {
@@ -180,21 +165,32 @@ withDefaults(
 }
 
 .auth-flow {
+  display: grid;
+  max-width: 460px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 36px 0 0;
+  padding: 24px 0 0;
+  list-style: none;
+  border-top: 1px solid rgb(255 255 255 / 18%);
+}
+
+.auth-flow li {
   display: flex;
-  max-width: 330px;
+  min-width: 0;
   align-items: center;
-  margin-top: 34px;
+  gap: 9px;
 }
 
 .auth-flow__node {
   display: inline-grid;
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   place-items: center;
   color: #ffffff;
-  background: rgb(255 255 255 / 10%);
-  border: 1px solid rgb(255 255 255 / 20%);
+  background: rgb(255 255 255 / 9%);
+  border: 1px solid rgb(255 255 255 / 22%);
   border-radius: var(--radius-md);
   animation: auth-node-enter 360ms var(--ease-standard) both;
 }
@@ -211,12 +207,23 @@ withDefaults(
   animation-delay: 160ms;
 }
 
-.auth-flow__line {
-  height: 1px;
-  flex: 1;
-  background: rgb(191 219 254 / 45%);
-  transform-origin: left;
-  animation: auth-line-enter 420ms var(--ease-standard) both;
+.auth-flow li > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.auth-flow small {
+  color: #8fc5eb;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.auth-flow strong {
+  color: #f8fbff;
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 @keyframes auth-copy-enter {
@@ -230,13 +237,6 @@ withDefaults(
   from {
     opacity: 0;
     transform: scale(0.9);
-  }
-}
-
-@keyframes auth-line-enter {
-  from {
-    opacity: 0;
-    transform: scaleX(0);
   }
 }
 
@@ -257,7 +257,7 @@ withDefaults(
 }
 
 .auth-form-shell header {
-  margin-bottom: 30px;
+  margin-bottom: 32px;
 }
 
 .auth-form-shell header > span {
@@ -271,15 +271,17 @@ withDefaults(
 .auth-form-shell h1 {
   margin: 0;
   color: var(--color-text-primary);
-  font-size: 38px;
+  font-size: 34px;
   font-weight: 680;
   line-height: 1.2;
 }
 
 .auth-form-shell p {
-  margin: 10px 0 0;
+  max-width: 32em;
+  margin: 11px 0 0;
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 @media (max-width: 900px) {
@@ -288,19 +290,20 @@ withDefaults(
   }
 
   .auth-layout__brand {
-    min-height: 220px;
+    min-height: 250px;
     padding: 28px;
   }
 
   .auth-brand-message h2 {
-    font-size: 30px;
+    max-width: 18em;
+    font-size: 28px;
+    line-height: 1.45;
   }
 
   .auth-form-shell h1 {
     font-size: 32px;
   }
 
-  .auth-brand-message h2 br,
   .auth-brand-message p,
   .auth-flow,
   .auth-brand-footer {
@@ -319,12 +322,13 @@ withDefaults(
 
 @media (max-width: 520px) {
   .auth-layout__brand {
-    min-height: 160px;
+    min-height: 190px;
     padding: 22px 20px;
   }
 
   .auth-brand-message h2 {
-    font-size: 23px;
+    max-width: 14em;
+    font-size: 24px;
   }
 
   .auth-brand-message > span {
@@ -333,6 +337,14 @@ withDefaults(
 
   .auth-layout__content {
     padding: 32px 20px 48px;
+  }
+
+  .auth-form-shell h1 {
+    font-size: 30px;
+  }
+
+  .auth-form-shell p {
+    font-size: 16px;
   }
 }
 </style>

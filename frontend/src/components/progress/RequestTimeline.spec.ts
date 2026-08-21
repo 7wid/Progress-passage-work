@@ -73,7 +73,7 @@ describe('RequestTimeline', () => {
 
     const text = wrapper.text()
     expect(text).toContain('完成接口开发')
-    expect(text).toContain('仅技术组可见')
+    expect(text).toContain('仅服务团队可见')
     expect(text).toContain('管理员完成任务分配')
     expect(text).toContain('发布测试环境和使用文档')
     expect(text).toContain('验收符合预期')

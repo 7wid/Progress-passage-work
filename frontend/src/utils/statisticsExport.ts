@@ -1,5 +1,6 @@
 import type { RequestStatus } from '@/types/request'
 import type { AdminStatisticsDashboard, StatisticsRange } from '@/types/statistics'
+import { PRODUCT_NAME } from '@/config/product'
 
 type CsvCell = string | number
 
@@ -37,7 +38,7 @@ export function buildStatisticsCsv(
 ): string {
   const { kpis, range } = dashboard
   const rows: CsvCell[][] = [
-    ['计算机技术组外包需求管理系统统计报表'],
+    [`${PRODUCT_NAME}统计报表`],
     ['统计范围', `${range.from} 至 ${range.to}`],
     ['分类筛选', context.categoryName],
     ['数据生成时间', dashboard.generatedAt],

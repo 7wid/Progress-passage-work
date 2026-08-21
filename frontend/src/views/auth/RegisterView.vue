@@ -109,8 +109,8 @@ onMounted(async () => {
 <template>
   <AuthLayout
     eyebrow="账号注册"
-    title="创建需求方账号"
-    description="完善基本信息后，即可提交并跟踪技术需求。"
+    title="创建个人账号"
+    description="完善基本信息后，即可发起需求并持续跟踪进展。"
     wide
   >
     <div v-loading="checking" class="register-content">

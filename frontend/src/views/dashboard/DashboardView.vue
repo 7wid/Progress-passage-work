@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowRight,
   CheckCircle2,
+  ChevronRight,
   CircleDot,
   ClipboardClock,
   Clock3,
@@ -39,7 +40,7 @@ const requesterCards: MetricConfig[] = [
     label: '待评估',
     status: 'PENDING_REVIEW',
     tone: 'blue',
-    hint: '等待技术组响应',
+    hint: '服务团队正在评估',
     icon: markRaw(ClipboardClock),
   },
   {
@@ -98,7 +99,17 @@ const teamCards: MetricConfig[] = [
 
 const cards = computed(() => (authStore.user?.role === 'REQUESTER' ? requesterCards : teamCards))
 const heading = computed(() =>
-  authStore.user?.role === 'REQUESTER' ? '我的需求概览' : '需求处理概览',
+  authStore.user?.role === 'REQUESTER' ? '我的需求进展' : '服务需求概览',
+)
+const introDescription = computed(() =>
+  authStore.user?.role === 'REQUESTER'
+    ? '从需求发起到成果验收，在这里查看每一步进展。'
+    : '集中查看待响应、待分配与执行中的服务需求。',
+)
+const activeLabel = computed(() => (authStore.user?.role === 'REQUESTER' ? '进行中' : '待推进'))
+const recentTitle = computed(() => (authStore.user?.role === 'REQUESTER' ? '最近更新' : '最近需求'))
+const recentDescription = computed(() =>
+  authStore.user?.role === 'REQUESTER' ? '关注状态发生变化的需求' : '按最近更新时间排列',
 )
 const canCreate = computed(
   () => authStore.user?.role === 'REQUESTER' || authStore.user?.role === 'ADMIN',
@@ -115,6 +126,11 @@ const today = new Intl.DateTimeFormat('zh-CN', {
   day: 'numeric',
   weekday: 'long',
 }).format(new Date())
+const activeTotal = computed(() =>
+  cards.value
+    .filter((card) => card.status !== 'COMPLETED')
+    .reduce((sum, card) => sum + (counts.value[card.status] ?? 0), 0),
+)
 
 async function loadDashboard() {
   loading.value = true
@@ -154,15 +170,25 @@ onMounted(loadDashboard)
 
 <template>
   <section class="page dashboard-page">
-    <div class="dashboard-intro">
+    <header class="dashboard-intro">
       <div class="dashboard-intro__copy">
         <span class="dashboard-intro__date">
           <Activity :size="14" aria-hidden="true" />
           {{ today }}
         </span>
         <h1>{{ greeting }}，{{ authStore.user?.displayName }}</h1>
-        <p>集中查看需求状态、近期更新与需要继续推进的工作。</p>
+        <p>{{ introDescription }}</p>
       </div>
+      <dl class="dashboard-intro__signals" aria-label="工作摘要">
+        <div>
+          <dt>{{ activeLabel }}</dt>
+          <dd>{{ activeTotal }}</dd>
+        </div>
+        <div>
+          <dt>全部需求</dt>
+          <dd>{{ total }}</dd>
+        </div>
+      </dl>
       <div class="dashboard-intro__actions">
         <el-button :loading="loading" @click="loadDashboard">
           <RefreshCw :size="17" aria-hidden="true" />
@@ -170,10 +196,10 @@ onMounted(loadDashboard)
         </el-button>
         <el-button v-if="canCreate" type="primary" @click="router.push('/requests/new')">
           <Plus :size="17" aria-hidden="true" />
-          提交需求
+          发起新需求
         </el-button>
       </div>
-    </div>
+    </header>
 
     <el-alert v-if="errorMessage" type="error" :closable="false" :title="errorMessage">
       <template #default>
@@ -199,6 +225,7 @@ onMounted(loadDashboard)
         type="button"
         class="metric"
         :class="`metric--${card.tone}`"
+        :aria-label="`${card.label} ${counts[card.status] ?? 0} 条，${card.hint}`"
         @click="openStatus(card.status)"
       >
         <span class="metric__icon" aria-hidden="true">
@@ -209,6 +236,7 @@ onMounted(loadDashboard)
           <small>{{ card.hint }}</small>
         </span>
         <strong>{{ counts[card.status] ?? 0 }}</strong>
+        <ChevronRight :size="17" class="metric__arrow" aria-hidden="true" />
       </button>
     </div>
 
@@ -216,8 +244,8 @@ onMounted(loadDashboard)
       <template #header>
         <div class="card-heading">
           <div>
-            <strong>最近需求</strong>
-            <span>按最近更新时间排列</span>
+            <strong>{{ recentTitle }}</strong>
+            <span>{{ recentDescription }}</span>
           </div>
           <ListFilter :size="18" aria-hidden="true" />
         </div>
@@ -248,55 +276,43 @@ onMounted(loadDashboard)
           <template #default="{ row }">{{ row.expectedDeadline ?? '—' }}</template>
         </el-table-column>
       </el-table>
+
+      <div v-loading="loading" class="recent-mobile" aria-label="最近需求">
+        <button
+          v-for="item in recent"
+          :key="item.id"
+          type="button"
+          class="recent-mobile__item"
+          @click="openRequest(item.id)"
+        >
+          <span class="recent-mobile__main">
+            <span class="recent-mobile__meta">
+              <code>{{ item.requestNo ?? '草稿' }}</code>
+              <RequestStatusTag :status="item.status" />
+            </span>
+            <strong>{{ item.title }}</strong>
+            <small
+              >{{ item.categoryName || '未分类' }} ·
+              {{ item.expectedDeadline ?? '未设置日期' }}</small
+            >
+          </span>
+          <ChevronRight :size="18" aria-hidden="true" />
+        </button>
+        <div v-if="!loading && !recent.length" class="recent-mobile__empty">暂无需求</div>
+      </div>
     </el-card>
   </section>
 </template>
 
 <style scoped>
 .dashboard-intro {
-  position: relative;
-  display: flex;
-  min-height: 190px;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 32px;
-  padding: 34px 38px;
-  overflow: hidden;
-  color: #f7fffb;
-  background: #1d4ed8;
-  border: 1px solid #1d4ed8;
-  border-radius: var(--radius-lg);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 36px;
+  padding: 4px 0 28px;
+  border-bottom: 1px solid var(--color-border);
   animation: intro-enter 380ms var(--ease-standard) both;
-}
-
-.dashboard-intro::before,
-.dashboard-intro::after {
-  position: absolute;
-  content: '';
-  pointer-events: none;
-}
-
-.dashboard-intro::before {
-  top: -110px;
-  right: 9%;
-  width: 250px;
-  height: 250px;
-  border: 1px solid rgb(255 255 255 / 12%);
-  transform: rotate(24deg);
-}
-
-.dashboard-intro::after {
-  right: -45px;
-  bottom: -90px;
-  width: 160px;
-  height: 260px;
-  background: rgb(96 165 250 / 20%);
-  transform: rotate(28deg);
-}
-
-.dashboard-intro > * {
-  position: relative;
-  z-index: 1;
 }
 
 .dashboard-intro__copy {
@@ -308,22 +324,53 @@ onMounted(loadDashboard)
   align-items: center;
   gap: 6px;
   margin-bottom: 9px;
-  color: #dbeafe;
+  color: var(--color-primary-strong);
   font-size: 13px;
   font-weight: 600;
 }
 
 .dashboard-intro h1 {
   margin: 0;
-  font-size: 42px;
+  color: var(--color-text-primary);
+  font-size: 31px;
   font-weight: 680;
   line-height: 1.2;
 }
 
 .dashboard-intro p {
-  margin: 12px 0 0;
-  color: #dbeafe;
-  font-size: 15px;
+  margin: 9px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.dashboard-intro__signals {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+}
+
+.dashboard-intro__signals > div {
+  display: grid;
+  min-width: 94px;
+  gap: 3px;
+  padding: 2px 20px;
+  border-left: 1px solid var(--color-border);
+}
+
+.dashboard-intro__signals dt {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dashboard-intro__signals dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 25px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
 
 .dashboard-intro__actions {
@@ -335,18 +382,6 @@ onMounted(loadDashboard)
 .dashboard-intro__actions :deep(.el-button) {
   min-height: 42px;
   margin: 0;
-}
-
-.dashboard-intro__actions :deep(.el-button:not(.el-button--primary)) {
-  color: #f7fffb;
-  background: rgb(255 255 255 / 8%);
-  border-color: rgb(255 255 255 / 28%);
-}
-
-.dashboard-intro__actions :deep(.el-button--primary) {
-  color: #1d4ed8;
-  background: #ffffff;
-  border-color: #ffffff;
 }
 
 .dashboard-intro__actions :deep(.el-button span) {
@@ -406,7 +441,7 @@ onMounted(loadDashboard)
   display: grid;
   min-width: 0;
   min-height: 102px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   padding: 17px;
@@ -436,9 +471,9 @@ onMounted(loadDashboard)
 }
 
 .metric:hover {
-  background: #fcfdfc;
-  border-color: var(--color-border);
-  box-shadow: 0 5px 16px rgb(20 32 27 / 6%);
+  background: #ffffff;
+  border-color: var(--metric-border, var(--color-border));
+  box-shadow: var(--shadow-raised);
 }
 
 .metric__icon {
@@ -476,24 +511,45 @@ onMounted(loadDashboard)
   line-height: 1;
 }
 
+.metric__arrow {
+  color: var(--color-text-tertiary);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition:
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.metric:hover .metric__arrow,
+.metric:focus-visible .metric__arrow {
+  color: var(--metric-color);
+  opacity: 1;
+  transform: translateX(0);
+}
+
 .metric--blue {
   --metric-color: #2563eb;
   --metric-background: #eff6ff;
+  --metric-border: #bfdbfe;
 }
 
 .metric--green {
   --metric-color: #059669;
   --metric-background: #ecfdf5;
+  --metric-border: #a7f3d0;
 }
 
 .metric--orange {
   --metric-color: #d97706;
   --metric-background: #fffbeb;
+  --metric-border: #fde68a;
 }
 
 .metric--purple {
   --metric-color: #7c3aed;
   --metric-background: #f5f3ff;
+  --metric-border: #ddd6fe;
 }
 
 @keyframes intro-enter {
@@ -564,6 +620,10 @@ onMounted(loadDashboard)
   color: var(--color-primary-strong);
 }
 
+.recent-mobile {
+  display: none;
+}
+
 @media (max-width: 1180px) {
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -572,20 +632,35 @@ onMounted(loadDashboard)
 
 @media (max-width: 840px) {
   .dashboard-intro {
-    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: flex-start;
-    flex-direction: column;
-    padding: 28px;
+    gap: 20px;
+  }
+
+  .dashboard-intro__signals {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dashboard-intro__signals > div:first-child {
+    padding-left: 0;
+    border-left: 0;
   }
 }
 
 @media (max-width: 560px) {
   .dashboard-intro {
-    padding: 24px 20px;
+    grid-template-columns: 1fr;
+    padding-bottom: 22px;
   }
 
   .dashboard-intro h1 {
-    font-size: 32px;
+    font-size: 27px;
+  }
+
+  .dashboard-intro__signals {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .dashboard-intro__actions {
@@ -599,6 +674,82 @@ onMounted(loadDashboard)
 
   .metrics {
     grid-template-columns: 1fr;
+  }
+
+  .recent-table {
+    display: none;
+  }
+
+  .recent-mobile {
+    display: grid;
+    min-height: 96px;
+  }
+
+  .recent-mobile__item {
+    display: grid;
+    min-width: 0;
+    min-height: 92px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 16px;
+    color: var(--color-text-tertiary);
+    text-align: left;
+    background: var(--color-surface);
+    border: 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .recent-mobile__item:hover,
+  .recent-mobile__item:focus-visible {
+    background: var(--color-primary-soft);
+  }
+
+  .recent-mobile__main {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+  }
+
+  .recent-mobile__meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .recent-mobile__meta code {
+    overflow: hidden;
+    color: var(--color-text-tertiary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  .recent-mobile__main > strong {
+    overflow: hidden;
+    color: var(--color-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 620;
+  }
+
+  .recent-mobile__main > small {
+    overflow: hidden;
+    color: var(--color-text-tertiary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .recent-mobile__empty {
+    display: grid;
+    min-height: 120px;
+    place-items: center;
+    color: var(--color-text-tertiary);
+    font-size: 13px;
   }
 }
 </style>

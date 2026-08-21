@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Download, FileText, Trash2 } from '@lucide/vue'
 import { downloadAttachment } from '@/api/attachments'
 import { getApiErrorMessage } from '@/api/http'
 import type { AttachmentRecord } from '@/types/attachment'
@@ -45,6 +46,7 @@ async function handleDownload(attachment: AttachmentRecord): Promise<void> {
   <el-empty v-if="attachments.length === 0" :description="emptyDescription" :image-size="60" />
   <ul v-else class="attachment-list">
     <li v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
+      <span class="attachment-icon" aria-hidden="true"><FileText :size="18" /></span>
       <div class="attachment-main">
         <span class="attachment-name" :title="attachment.originalName">
           {{ attachment.originalName }}
@@ -61,6 +63,7 @@ async function handleDownload(attachment: AttachmentRecord): Promise<void> {
           :disabled="downloadingId !== null && downloadingId !== attachment.id"
           @click="handleDownload(attachment)"
         >
+          <Download :size="15" aria-hidden="true" />
           下载
         </el-button>
         <el-button
@@ -71,6 +74,7 @@ async function handleDownload(attachment: AttachmentRecord): Promise<void> {
           :disabled="deleteDisabled || (deletingId !== null && deletingId !== attachment.id)"
           @click="emit('remove', attachment)"
         >
+          <Trash2 :size="15" aria-hidden="true" />
           删除
         </el-button>
       </div>
@@ -91,9 +95,27 @@ async function handleDownload(attachment: AttachmentRecord): Promise<void> {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  padding: 11px 12px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: #fbfcfe;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+.attachment-item:hover {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+.attachment-icon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-md);
 }
 .attachment-main {
   display: grid;
@@ -102,16 +124,41 @@ async function handleDownload(attachment: AttachmentRecord): Promise<void> {
 }
 .attachment-name {
   overflow: hidden;
-  font-weight: 500;
+  color: var(--color-text-primary);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .attachment-meta {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
   font-size: 12px;
 }
 .attachment-actions {
   display: flex;
   flex: none;
+}
+.attachment-actions :deep(.el-button) {
+  margin: 0;
+}
+.attachment-actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 560px) {
+  .attachment-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .attachment-main {
+    flex: 1;
+  }
+
+  .attachment-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 </style>

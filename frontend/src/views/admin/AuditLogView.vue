@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef } from 'vue'
+import { Eye, RotateCcw, Search, ShieldCheck } from '@lucide/vue'
 import { getAdminAuditLogs } from '@/api/auditLogs'
 import { getApiErrorMessage } from '@/api/http'
+import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import type { AuditJson, AuditLogRecord } from '@/types/audit'
 
 const BUSINESS_TIME_ZONE = 'Asia/Shanghai'
@@ -11,11 +13,11 @@ const actionOptions = [
   ['AUTH_LOGOUT', '退出登录'],
   ['PROFILE_UPDATED', '更新个人资料'],
   ['PASSWORD_CHANGED', '修改密码'],
-  ['USER_REGISTERED', '需求方注册'],
+  ['USER_REGISTERED', '申请人注册'],
   ['REQUEST_DRAFT_SAVED', '保存需求草稿'],
   ['REQUEST_CONTENT_UPDATED', '更新需求内容'],
-  ['REQUEST_SUBMITTED', '提交需求'],
-  ['REQUEST_CANCELLED_BY_REQUESTER', '需求方取消需求'],
+  ['REQUEST_SUBMITTED', '发起需求'],
+  ['REQUEST_CANCELLED_BY_REQUESTER', '申请人取消需求'],
   ['EVALUATION_CREATED', '提交评估'],
   ['EVALUATION_REJECTION_CONFIRMED', '确认不承接'],
   ['ASSIGNMENT_UPDATE', '调整任务成员'],
@@ -165,15 +167,17 @@ onMounted(() => void loadData())
 
 <template>
   <section class="page">
-    <div class="page__header">
-      <div>
-        <h2>审计记录</h2>
-        <span class="summary">关键操作只读追踪；敏感字段由服务端统一脱敏</span>
-      </div>
-      <el-tag type="info">仅管理员可见</el-tag>
-    </div>
+    <AppPageHeader
+      title="审计记录"
+      description="关键操作只读追踪；敏感字段由服务端统一脱敏。"
+      eyebrow="SECURITY"
+      :icon="ShieldCheck"
+      tone="slate"
+    >
+      <template #meta><el-tag type="info">仅管理员可见</el-tag></template>
+    </AppPageHeader>
 
-    <el-card>
+    <el-card class="filter-card" shadow="never">
       <el-form label-position="top" @submit.prevent="search">
         <div class="filters">
           <el-form-item label="操作日期">
@@ -216,8 +220,12 @@ onMounted(() => void loadData())
           </el-form-item>
         </div>
         <div class="filter-actions">
-          <el-button @click="resetFilters">重置为本月</el-button>
-          <el-button type="primary" native-type="submit" :loading="loading">查询</el-button>
+          <el-button @click="resetFilters">
+            <RotateCcw :size="16" aria-hidden="true" />重置为本月
+          </el-button>
+          <el-button type="primary" native-type="submit" :loading="loading">
+            <Search :size="16" aria-hidden="true" />查询
+          </el-button>
         </div>
       </el-form>
     </el-card>
@@ -228,7 +236,13 @@ onMounted(() => void loadData())
       </template>
     </el-alert>
 
-    <el-card>
+    <el-card class="result-card">
+      <template #header>
+        <div class="result-heading">
+          <span><ShieldCheck :size="17" aria-hidden="true" />操作记录</span>
+          <small>共 {{ total }} 条</small>
+        </div>
+      </template>
       <el-table v-loading="loading" :data="items" row-key="id" empty-text="暂无审计记录">
         <el-table-column label="时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -250,7 +264,9 @@ onMounted(() => void loadData())
         <el-table-column prop="ipAddress" label="来源 IP" width="150" />
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openDetail(row)">查看</el-button>
+            <el-button link type="primary" @click="openDetail(row)">
+              <Eye :size="15" aria-hidden="true" />查看
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -300,9 +316,11 @@ onMounted(() => void loadData())
 </template>
 
 <style scoped>
-.summary,
 small {
-  color: #6b7280;
+  color: var(--color-text-tertiary);
+}
+.filter-card {
+  border-left: 3px solid #64748b;
 }
 .filters {
   display: grid;
@@ -318,6 +336,33 @@ small {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+.filter-actions :deep(.el-button span),
+.result-heading,
+.result-heading > span,
+.result-card :deep(.el-button span) {
+  display: flex;
+  align-items: center;
+}
+.filter-actions :deep(.el-button span),
+.result-heading > span,
+.result-card :deep(.el-button span) {
+  gap: 7px;
+}
+.result-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+.result-heading > span {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+.result-heading small {
+  font-size: 12px;
+  font-weight: 500;
+}
+.result-card :deep(.el-card__body) {
+  padding: 0 0 16px;
 }
 .pagination {
   margin-top: 16px;

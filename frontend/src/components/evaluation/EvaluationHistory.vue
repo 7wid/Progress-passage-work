@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ClipboardCheck } from '@lucide/vue'
 import EvaluationConclusionTag from './EvaluationConclusionTag.vue'
+import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { EvaluationRecord } from '@/types/evaluation'
 
 const props = withDefaults(
@@ -41,7 +43,15 @@ function formatDateTime(value: string | null): string {
 </script>
 
 <template>
-  <el-card header="可行性评估记录">
+  <el-card>
+    <template #header>
+      <AppSectionHeader
+        title="可行性评估记录"
+        description="技术判断与历史评估版本"
+        :icon="ClipboardCheck"
+        tone="orange"
+      />
+    </template>
     <el-empty v-if="orderedEvaluations.length === 0" description="暂无评估记录" />
 
     <div v-else class="evaluation-list">
@@ -63,7 +73,7 @@ function formatDateTime(value: string | null): string {
         </div>
 
         <section>
-          <h4>评估说明（需求方可见）</h4>
+          <h4>评估说明（申请人可见）</h4>
           <p class="pre-wrap">
             {{ evaluation.publicComment }}
           </p>
@@ -82,7 +92,7 @@ function formatDateTime(value: string | null): string {
             {{ formatDateTime(evaluation.estimatedFinishAt) }}
           </el-descriptions-item>
 
-          <el-descriptions-item label="技术方案摘要" :span="2">
+          <el-descriptions-item label="实施方案摘要" :span="2">
             <span class="pre-wrap">
               {{ evaluation.solutionSummary ?? '—' }}
             </span>
@@ -107,7 +117,7 @@ function formatDateTime(value: string | null): string {
           v-if="evaluation.internalNote"
           type="info"
           :closable="false"
-          title="技术组内部备注"
+          title="服务团队内部备注"
         >
           <template #default>
             <span class="pre-wrap">
@@ -140,8 +150,17 @@ function formatDateTime(value: string | null): string {
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: #fbfcfe;
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.evaluation-item:hover {
+  border-color: var(--color-primary-border);
+  box-shadow: 0 6px 18px rgb(15 23 42 / 5%);
 }
 
 .evaluation-item__header {
@@ -149,22 +168,26 @@ function formatDateTime(value: string | null): string {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #6b7280;
+  color: var(--color-text-tertiary);
 }
 
 .evaluation-item__title {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #1f2937;
+  color: var(--color-text-primary);
 }
 
 h4 {
   margin: 0 0 8px;
+  color: var(--color-text-primary);
+  font-size: 13px;
 }
 
 p {
   margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
 }
 
 .pre-wrap {
