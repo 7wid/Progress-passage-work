@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 
+const LandingView = () => import('@/views/public/LandingView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
 const RegisterView = () => import('@/views/auth/RegisterView.vue')
 const DashboardView = () => import('@/views/dashboard/DashboardView.vue')
@@ -19,64 +20,65 @@ const NotificationCenterView = () => import('@/views/notifications/NotificationC
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: '/', name: 'landing', component: LandingView, meta: { public: true } },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
     { path: '/register', name: 'register', component: RegisterView, meta: { public: true } },
     {
-      path: '/',
+      path: '/app',
       component: AppLayout,
       children: [
         { path: '', redirect: '/dashboard' },
-        { path: 'dashboard', component: DashboardView },
-        { path: 'requests', name: 'request-list', component: RequestListView },
+        { path: '/dashboard', component: DashboardView },
+        { path: '/requests', name: 'request-list', component: RequestListView },
         {
-          path: 'requests/new',
+          path: '/requests/new',
           name: 'request-create',
           component: RequestCreateView,
           meta: { roles: ['REQUESTER', 'ADMIN'] },
         },
         {
-          path: 'requests/:id/edit',
+          path: '/requests/:id/edit',
           name: 'request-edit',
           component: RequestCreateView,
           meta: { roles: ['REQUESTER', 'ADMIN'] },
         },
-        { path: 'requests/:id', name: 'request-detail', component: RequestDetailView },
+        { path: '/requests/:id', name: 'request-detail', component: RequestDetailView },
         {
-          path: 'workspace',
+          path: '/workspace',
           name: 'workspace',
           component: WorkspaceView,
           meta: { roles: ['MEMBER', 'ADMIN'] },
         },
         {
-          path: 'admin/members',
+          path: '/admin/members',
           name: 'admin-members',
           component: MemberManagementView,
           meta: { roles: ['ADMIN'] },
         },
         {
-          path: 'admin/categories',
+          path: '/admin/categories',
           name: 'admin-categories',
           component: CategoryManagementView,
           meta: { roles: ['ADMIN'] },
         },
         {
-          path: 'admin/statistics',
+          path: '/admin/statistics',
           name: 'admin-statistics',
           component: StatisticsView,
           meta: { roles: ['ADMIN'] },
         },
         {
-          path: 'admin/audit-logs',
+          path: '/admin/audit-logs',
           name: 'admin-audit-logs',
           component: AuditLogView,
           meta: { roles: ['ADMIN'] },
         },
         {
-          path: 'notifications',
+          path: '/notifications',
           name: 'notifications',
           component: NotificationCenterView,
         },
-        { path: 'settings', component: SettingsView },
+        { path: '/settings', component: SettingsView },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
