@@ -2,6 +2,7 @@ import { http } from './http'
 import type { ApiResponse } from '@/types/api'
 import type {
   AssignableMemberOption,
+  MemberRecommendationResult,
   RequestAssignment,
   UpdateRequestMembersInput,
 } from '@/types/assignment'
@@ -27,6 +28,15 @@ export async function getAssignableMemberOptions(keyword = ''): Promise<Assignab
 
 export async function getRequestAssignment(requestId: string): Promise<RequestAssignment> {
   const response = await http.get<ApiResponse<RequestAssignment>>(membersPath(requestId))
+  return response.data.data
+}
+
+export async function getRequestMemberRecommendations(
+  requestId: string,
+): Promise<MemberRecommendationResult> {
+  const response = await http.get<ApiResponse<MemberRecommendationResult>>(
+    `${membersPath(requestId)}/recommendations`,
+  )
   return response.data.data
 }
 

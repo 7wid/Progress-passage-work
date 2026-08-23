@@ -11,6 +11,19 @@ export interface AssignableMemberOption {
   role: AssignableMemberRole
 }
 
+export interface MemberRecommendation extends AssignableMemberOption {
+  skills: string[]
+  matchedSkills: string[]
+  activeRequestCount: number
+  projectedActiveRequestCount: number
+  rank: number
+}
+
+export interface MemberRecommendationResult {
+  requiredSkills: string | null
+  members: MemberRecommendation[]
+}
+
 export interface RequestMember {
   id: string
   userId: string

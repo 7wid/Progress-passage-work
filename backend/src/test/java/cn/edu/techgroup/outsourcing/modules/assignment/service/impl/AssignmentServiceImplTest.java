@@ -21,8 +21,11 @@ import cn.edu.techgroup.outsourcing.modules.assignment.dto.UpdateRequestMembersC
 import cn.edu.techgroup.outsourcing.modules.assignment.entity.RequestMemberEntity;
 import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
+import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberRecommendationResultVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
 import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.modules.evaluation.entity.EvaluationEntity;
+import cn.edu.techgroup.outsourcing.modules.evaluation.mapper.EvaluationMapper;
 import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
 import cn.edu.techgroup.outsourcing.modules.notification.enums.NotificationType;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
@@ -33,7 +36,10 @@ import cn.edu.techgroup.outsourcing.modules.request.mapper.RequestMapper;
 import cn.edu.techgroup.outsourcing.modules.user.entity.UserEntity;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserStatus;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserActiveOwnerCount;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserSkillMapper;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserSkillRow;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import java.time.Instant;
 import java.util.List;
@@ -55,6 +61,10 @@ class AssignmentServiceImplTest {
     @Mock
     private UserMapper userMapper;
     @Mock
+    private UserSkillMapper userSkillMapper;
+    @Mock
+    private EvaluationMapper evaluationMapper;
+    @Mock
     private StatusHistoryMapper statusHistoryMapper;
     @Mock
     private NotificationEventPublisher notificationEventPublisher;
@@ -69,9 +79,110 @@ class AssignmentServiceImplTest {
                 requestMapper,
                 requestMemberMapper,
                 userMapper,
+                userSkillMapper,
+                evaluationMapper,
                 statusHistoryMapper,
                 notificationEventPublisher,
                 auditRecorder);
+    }
+
+    @Test
+    void recommendsByMatchedSkillsThenProjectedLoad() {
+        EvaluationEntity evaluation = new EvaluationEntity();
+        evaluation.setRequiredSkills("Java，数据库");
+
+        when(requestMapper.selectById(REQUEST_ID))
+                .thenReturn(request(RequestStatus.PENDING_ASSIGNMENT, 2));
+        when(userMapper.selectAllAssignableUsers())
+                .thenReturn(List.of(
+                        user(2L, UserRole.MEMBER, UserStatus.ACTIVE),
+                        user(3L, UserRole.MEMBER, UserStatus.ACTIVE),
+                        user(4L, UserRole.ADMIN, UserStatus.ACTIVE)));
+        when(userSkillMapper.selectByUserIds(List.of(2L, 3L, 4L)))
+                .thenReturn(List.of(
+                        new UserSkillRow(2L, 10L, "Java"),
+                        new UserSkillRow(3L, 11L, "Python"),
+                        new UserSkillRow(4L, 10L, "Java"),
+                        new UserSkillRow(4L, 12L, "数据库")));
+        when(userMapper.selectActiveOwnerCounts(List.of(2L, 3L, 4L)))
+                .thenReturn(List.of(
+                        new UserActiveOwnerCount(2L, 3L),
+                        new UserActiveOwnerCount(3L, 0L),
+                        new UserActiveOwnerCount(4L, 1L)));
+        when(requestMemberMapper.selectByRequestId(REQUEST_ID))
+                .thenReturn(List.of());
+        when(evaluationMapper.selectLatestFeasibleByRequestId(REQUEST_ID))
+                .thenReturn(evaluation);
+
+        MemberRecommendationResultVO result = assignmentService.recommend(
+                REQUEST_ID,
+                loginUser(9L, UserRole.ADMIN));
+
+        assertEquals("Java，数据库", result.requiredSkills());
+        assertEquals(List.of("4", "2", "3"), result.members()
+                .stream()
+                .map(member -> member.id())
+                .toList());
+        assertEquals(List.of("Java", "数据库"),
+                result.members().getFirst().matchedSkills());
+        assertEquals(2L,
+                result.members().getFirst().projectedActiveRequestCount());
+        assertEquals(1, result.members().getFirst().rank());
+    }
+
+    @Test
+    void inProgressRecommendationUsesPostTransferLoad() {
+        RequestMemberEntity owner = relation(
+                11L,
+                2L,
+                RequestMemberType.OWNER);
+
+        when(requestMapper.selectById(REQUEST_ID))
+                .thenReturn(request(RequestStatus.IN_PROGRESS, 3));
+        when(userMapper.selectAllAssignableUsers())
+                .thenReturn(List.of(
+                        user(2L, UserRole.MEMBER, UserStatus.ACTIVE),
+                        user(3L, UserRole.MEMBER, UserStatus.ACTIVE)));
+        when(userSkillMapper.selectByUserIds(List.of(2L, 3L)))
+                .thenReturn(List.of());
+        when(userMapper.selectActiveOwnerCounts(List.of(2L, 3L)))
+                .thenReturn(List.of(
+                        new UserActiveOwnerCount(2L, 2L),
+                        new UserActiveOwnerCount(3L, 1L)));
+        when(requestMemberMapper.selectByRequestId(REQUEST_ID))
+                .thenReturn(List.of(owner));
+        when(evaluationMapper.selectLatestFeasibleByRequestId(REQUEST_ID))
+                .thenReturn(null);
+
+        MemberRecommendationResultVO result = assignmentService.recommend(
+                REQUEST_ID,
+                loginUser(9L, UserRole.ADMIN));
+
+        assertEquals(List.of("2", "3"), result.members()
+                .stream()
+                .map(member -> member.id())
+                .toList());
+        assertEquals(2L,
+                result.members().getFirst().projectedActiveRequestCount());
+        assertEquals(2L,
+                result.members().get(1).projectedActiveRequestCount());
+    }
+
+    @Test
+    void rejectsRecommendationForNonAdmin() {
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> assignmentService.recommend(
+                        REQUEST_ID,
+                        loginUser(2L, UserRole.MEMBER)));
+
+        assertSame(ErrorCode.ACCESS_DENIED, exception.getErrorCode());
+        verifyNoInteractions(
+                requestMapper,
+                requestMemberMapper,
+                userMapper,
+                userSkillMapper,
+                evaluationMapper);
     }
 
     @Test

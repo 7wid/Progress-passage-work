@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getAssignableMemberOptions,
   getRequestAssignment,
+  getRequestMemberRecommendations,
   updateRequestAssignment,
 } from './assignments'
 import { http } from './http'
@@ -40,6 +41,29 @@ describe('assignments api', () => {
 
     await expect(getRequestAssignment('10/20')).resolves.toEqual(assignment)
     expect(getMock).toHaveBeenCalledWith('/requests/10%2F20/members')
+  })
+
+  it('按需求加载成员推荐结果', async () => {
+    const result = {
+      requiredSkills: 'Java、数据库',
+      members: [
+        {
+          id: '2',
+          account: 'member01',
+          displayName: '成员一',
+          role: 'MEMBER' as const,
+          skills: ['Java'],
+          matchedSkills: ['Java'],
+          activeRequestCount: 1,
+          projectedActiveRequestCount: 2,
+          rank: 1,
+        },
+      ],
+    }
+    getMock.mockResolvedValueOnce({ data: { data: result } } as never)
+
+    await expect(getRequestMemberRecommendations('10/20')).resolves.toEqual(result)
+    expect(getMock).toHaveBeenCalledWith('/requests/10%2F20/members/recommendations')
   })
 
   it('更新前获取 CSRF 并发送数字成员 ID', async () => {
