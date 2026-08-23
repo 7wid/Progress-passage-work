@@ -19,11 +19,11 @@ import {
   Settings,
   Tags,
   UsersRound,
-  Workflow,
   X,
 } from '@lucide/vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import GlobalCommandPalette from '@/components/common/GlobalCommandPalette.vue'
+import ProductLogo from '@/components/common/ProductLogo.vue'
 import type { CommandNavigationItem } from '@/components/common/GlobalCommandPalette.vue'
 import NotificationBell from '@/components/notification/NotificationBell.vue'
 import { PRODUCT_NAME, PRODUCT_NAME_EN } from '@/config/product'
@@ -201,7 +201,7 @@ onUnmounted(() => {
       <div class="app-sidebar__brand">
         <RouterLink to="/dashboard" class="brand-link" :aria-label="`${PRODUCT_NAME}首页`">
           <span class="brand-mark" aria-hidden="true">
-            <Workflow :size="20" :stroke-width="2" />
+            <ProductLogo :size="20" />
           </span>
           <span class="brand-copy" :aria-hidden="sidebarCollapsed">
             <strong>{{ PRODUCT_NAME }}</strong>
@@ -330,10 +330,10 @@ onUnmounted(() => {
       </header>
 
       <main id="main-content" class="app-main" tabindex="-1">
-        <RouterView v-slot="{ Component }">
-          <Transition name="page" mode="out-in">
+        <RouterView v-slot="{ Component, route: currentRoute }">
+          <div :key="currentRoute.fullPath" class="app-route-view">
             <component :is="Component" />
-          </Transition>
+          </div>
         </RouterView>
       </main>
     </div>
@@ -716,6 +716,18 @@ onUnmounted(() => {
   outline: none;
 }
 
+.app-route-view {
+  min-width: 0;
+  animation: app-route-enter 180ms var(--ease-standard) both;
+}
+
+@keyframes app-route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
 .app-shell__backdrop {
   display: none;
 }
@@ -858,6 +870,10 @@ onUnmounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .app-sidebar {
     transition: none;
+  }
+
+  .app-route-view {
+    animation: none;
   }
 }
 </style>

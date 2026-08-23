@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { BadgeCheck, ClipboardList, MessageSquare, Workflow } from '@lucide/vue'
+import { BadgeCheck, ClipboardList, MessageSquare } from '@lucide/vue'
+import ProductLogo from '@/components/common/ProductLogo.vue'
 import { PRODUCT_NAME, PRODUCT_NAME_EN } from '@/config/product'
 
 withDefaults(
@@ -18,7 +19,7 @@ withDefaults(
     <section class="auth-layout__brand" aria-label="产品信息">
       <div class="auth-brand-lockup">
         <span class="auth-brand-mark" aria-hidden="true">
-          <Workflow :size="23" :stroke-width="2" />
+          <ProductLogo :size="23" />
         </span>
         <span>
           <strong>{{ PRODUCT_NAME }}</strong>

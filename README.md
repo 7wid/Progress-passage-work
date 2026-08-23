@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/7wid/Progress-passage-work/actions/workflows/ci.yml/badge.svg)](https://github.com/7wid/Progress-passage-work/actions/workflows/ci.yml)
 
-面向校内需求方、计算机技术组成员和管理员的需求协作平台，覆盖需求提交、技术评估、任务分配、进度记录、附件、交付验收、站内通知、管理后台、统计与审计。
+这是计算机技术组面向校内需求方的统一服务入口。不会编程也可以从真实问题出发提交需求，并在同一处查看团队评估、负责人、处理进度和交付成果；技术组成员与管理员的协作能力作为后台支撑。
 
 当前阶段：M7 正式运行交接完成，进入第三个 P1 小版本迭代。当前交付为任务成员辅助推荐，验收范围见 [P1 成员推荐验收清单](docs/P1成员推荐验收清单.md)，版本变更见 [CHANGELOG](CHANGELOG.md)。
 
@@ -24,6 +24,11 @@
 ├─ docker-compose.yml       本地开发 MySQL
 └─ docker-compose.prod.yml  完整生产栈
 ```
+
+第一次使用建议先阅读：
+
+- [项目文档导航](docs/README.md)
+- [需求方使用指南](docs/需求方使用指南.md)
 
 详细业务和工程规则见：
 
