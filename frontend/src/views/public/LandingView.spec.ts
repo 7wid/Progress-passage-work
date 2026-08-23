@@ -1,18 +1,25 @@
 import { RouterLinkStub, shallowMount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import ProductLogo from '@/components/common/ProductLogo.vue'
+import LandingIllustration from '@/components/public/LandingIllustration.vue'
 import LandingView from './LandingView.vue'
 
 describe('LandingView', () => {
-  it('展示技术组背景、系统能力与完整协作流程', () => {
+  it('以需求方语言展示服务范围、统一插画与完整协作流程', () => {
     const wrapper = shallowMount(LandingView, {
       global: { stubs: { RouterLink: RouterLinkStub } },
     })
 
     expect(wrapper.get('h1').text()).toContain('计算机技术组')
+    expect(wrapper.text()).toContain('无需预先懂技术')
     expect(wrapper.text()).toContain('网站与系统建设')
     expect(wrapper.text()).toContain('专业可行性评估')
     expect(wrapper.findAll('.landing-workflow__steps li')).toHaveLength(5)
     expect(wrapper.findAll('.landing-feature-grid article')).toHaveLength(6)
+    expect(
+      wrapper.findAllComponents(LandingIllustration).map((item) => item.props('variant')),
+    ).toEqual(['hero', 'collaboration', 'delivery'])
+    expect(wrapper.findAllComponents(ProductLogo)).toHaveLength(2)
   })
 
   it('提供登录和注册路由入口', () => {
@@ -23,6 +30,24 @@ describe('LandingView', () => {
     const destinations = wrapper.findAllComponents(RouterLinkStub).map((link) => link.props('to'))
     expect(destinations).toContain('/login')
     expect(destinations).toContain('/register')
+  })
+
+  it('大标题使用明确分行代替逗号断句', () => {
+    const wrapper = shallowMount(LandingView, {
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    const splitTitles = wrapper.findAll('h2.landing-title-lines')
+
+    expect(splitTitles).toHaveLength(7)
+    splitTitles.forEach((title) => {
+      const lines = title.findAll('span')
+
+      expect(lines.length).toBeGreaterThanOrEqual(2)
+      expect(lines.length).toBeLessThanOrEqual(3)
+      lines.forEach((line) => expect(line.text().length).toBeLessThanOrEqual(9))
+      expect(title.text()).not.toContain('，')
+    })
   })
 
   it('移动导航按钮暴露展开状态并可切换', async () => {
