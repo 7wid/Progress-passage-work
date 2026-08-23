@@ -10,6 +10,17 @@ import org.apache.ibatis.annotations.Select;
 public interface EvaluationMapper extends BaseMapper<EvaluationEntity> {
 
     @Select("""
+            SELECT *
+            FROM evaluation
+            WHERE request_id = #{requestId}
+              AND conclusion = 'FEASIBLE'
+            ORDER BY version DESC, id DESC
+            LIMIT 1
+            """)
+    EvaluationEntity selectLatestFeasibleByRequestId(
+            @Param("requestId") Long requestId);
+
+    @Select("""
             SELECT COALESCE(MAX(version), 0)
             FROM evaluation
             WHERE request_id = #{requestId}

@@ -8,9 +8,13 @@ import cn.edu.techgroup.outsourcing.modules.assignment.enums.RequestMemberType;
 import cn.edu.techgroup.outsourcing.modules.assignment.mapper.RequestMemberMapper;
 import cn.edu.techgroup.outsourcing.modules.assignment.service.AssignmentService;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberOptionVO;
+import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberRecommendationResultVO;
+import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberRecommendationVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestMemberVO;
 import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.modules.evaluation.entity.EvaluationEntity;
+import cn.edu.techgroup.outsourcing.modules.evaluation.mapper.EvaluationMapper;
 import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEventPublisher;
 import cn.edu.techgroup.outsourcing.modules.notification.event.NotificationEvents;
 import cn.edu.techgroup.outsourcing.modules.progress.entity.StatusHistoryEntity;
@@ -21,13 +25,18 @@ import cn.edu.techgroup.outsourcing.modules.request.mapper.RequestMapper;
 import cn.edu.techgroup.outsourcing.modules.user.entity.UserEntity;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserStatus;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserActiveOwnerCount;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserSkillMapper;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserSkillRow;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -48,6 +57,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final RequestMapper requestMapper;
     private final RequestMemberMapper requestMemberMapper;
     private final UserMapper userMapper;
+    private final UserSkillMapper userSkillMapper;
+    private final EvaluationMapper evaluationMapper;
     private final StatusHistoryMapper statusHistoryMapper;
     private final NotificationEventPublisher notificationEventPublisher;
     private final AuditRecorder auditRecorder;
@@ -56,12 +67,16 @@ public class AssignmentServiceImpl implements AssignmentService {
             RequestMapper requestMapper,
             RequestMemberMapper requestMemberMapper,
             UserMapper userMapper,
+            UserSkillMapper userSkillMapper,
+            EvaluationMapper evaluationMapper,
             StatusHistoryMapper statusHistoryMapper,
             NotificationEventPublisher notificationEventPublisher,
             AuditRecorder auditRecorder) {
         this.requestMapper = requestMapper;
         this.requestMemberMapper = requestMemberMapper;
         this.userMapper = userMapper;
+        this.userSkillMapper = userSkillMapper;
+        this.evaluationMapper = evaluationMapper;
         this.statusHistoryMapper = statusHistoryMapper;
         this.notificationEventPublisher = notificationEventPublisher;
         this.auditRecorder = auditRecorder;
@@ -87,6 +102,70 @@ public class AssignmentServiceImpl implements AssignmentService {
                         user.getDisplayName(),
                         user.getRole()))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MemberRecommendationResultVO recommend(
+            Long requestId,
+            LoginUser operator) {
+        requireAdmin(operator);
+
+        RequestEntity request = findRequest(requestId);
+        if (request.getStatus() != RequestStatus.PENDING_ASSIGNMENT
+                && request.getStatus() != RequestStatus.IN_PROGRESS) {
+            throw new BusinessException(
+                    ErrorCode.REQUEST_STATUS_CONFLICT,
+                    "当前需求状态不支持成员推荐");
+        }
+
+        List<UserEntity> users = userMapper.selectAllAssignableUsers();
+        if (users.isEmpty()) {
+            return new MemberRecommendationResultVO(null, List.of());
+        }
+
+        List<Long> userIds = users.stream()
+                .map(UserEntity::getId)
+                .toList();
+        Map<Long, List<String>> skillsByUser = loadSkillsByUser(userIds);
+        Map<Long, Long> activeCounts = loadActiveCounts(userIds);
+        Long currentOwnerId = currentOwnerId(requestId);
+        EvaluationEntity evaluation =
+                evaluationMapper.selectLatestFeasibleByRequestId(requestId);
+        String requiredSkills = evaluation == null
+                ? null
+                : evaluation.getRequiredSkills();
+        Set<String> requiredSkillKeys = requiredSkillKeys(requiredSkills);
+
+        List<MemberRecommendationVO> candidates = users.stream()
+                .map(user -> recommendationCandidate(
+                        user,
+                        skillsByUser.getOrDefault(user.getId(), List.of()),
+                        activeCounts.getOrDefault(user.getId(), 0L),
+                        projectedActiveCount(
+                                activeCounts.getOrDefault(user.getId(), 0L),
+                                request.getStatus(),
+                                currentOwnerId,
+                                user.getId()),
+                        requiredSkillKeys))
+                .sorted(recommendationComparator())
+                .toList();
+
+        List<MemberRecommendationVO> ranked = new ArrayList<>(candidates.size());
+        for (int index = 0; index < candidates.size(); index++) {
+            MemberRecommendationVO candidate = candidates.get(index);
+            ranked.add(new MemberRecommendationVO(
+                    candidate.id(),
+                    candidate.account(),
+                    candidate.displayName(),
+                    candidate.role(),
+                    candidate.skills(),
+                    candidate.matchedSkills(),
+                    candidate.activeRequestCount(),
+                    candidate.projectedActiveRequestCount(),
+                    index + 1));
+        }
+        return new MemberRecommendationResultVO(requiredSkills, ranked);
     }
 
     @Override
@@ -217,6 +296,97 @@ public class AssignmentServiceImpl implements AssignmentService {
                 || reason.trim().length() > MAX_REASON_LENGTH) {
             throw invalidArgument("调整原因应为 5～500 个字符");
         }
+    }
+
+    private Map<Long, List<String>> loadSkillsByUser(List<Long> userIds) {
+        return userSkillMapper.selectByUserIds(userIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        UserSkillRow::userId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(
+                                UserSkillRow::skillName,
+                                Collectors.toList())));
+    }
+
+    private Map<Long, Long> loadActiveCounts(List<Long> userIds) {
+        return userMapper.selectActiveOwnerCounts(userIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        UserActiveOwnerCount::userId,
+                        UserActiveOwnerCount::activeCount));
+    }
+
+    private Long currentOwnerId(Long requestId) {
+        return requestMemberMapper.selectByRequestId(requestId)
+                .stream()
+                .filter(member ->
+                        member.getMemberType() == RequestMemberType.OWNER)
+                .map(RequestMemberEntity::getUserId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Set<String> requiredSkillKeys(String requiredSkills) {
+        if (!StringUtils.hasText(requiredSkills)) {
+            return Set.of();
+        }
+        return java.util.Arrays.stream(
+                        requiredSkills.split("[\\s,，、;；/|]+"))
+                .map(this::normalizeSkill)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+    }
+
+    private String normalizeSkill(String skill) {
+        return skill == null
+                ? ""
+                : skill.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private long projectedActiveCount(
+            long activeCount,
+            RequestStatus requestStatus,
+            Long currentOwnerId,
+            Long candidateId) {
+        if (requestStatus == RequestStatus.IN_PROGRESS
+                && Objects.equals(currentOwnerId, candidateId)) {
+            return activeCount;
+        }
+        return activeCount + 1;
+    }
+
+    private MemberRecommendationVO recommendationCandidate(
+            UserEntity user,
+            List<String> skills,
+            long activeRequestCount,
+            long projectedActiveRequestCount,
+            Set<String> requiredSkillKeys) {
+        List<String> matchedSkills = skills.stream()
+                .filter(skill -> requiredSkillKeys.contains(
+                        normalizeSkill(skill)))
+                .toList();
+        return new MemberRecommendationVO(
+                user.getId().toString(),
+                user.getAccount(),
+                user.getDisplayName(),
+                user.getRole(),
+                List.copyOf(skills),
+                matchedSkills,
+                activeRequestCount,
+                projectedActiveRequestCount,
+                0);
+    }
+
+    private Comparator<MemberRecommendationVO> recommendationComparator() {
+        return Comparator
+                .<MemberRecommendationVO>comparingInt(
+                        candidate -> candidate.matchedSkills().size())
+                .reversed()
+                .thenComparingLong(
+                        MemberRecommendationVO::projectedActiveRequestCount)
+                .thenComparing(MemberRecommendationVO::displayName)
+                .thenComparing(MemberRecommendationVO::id);
     }
 
     private Map<Long, RequestMemberType> desiredTypes(

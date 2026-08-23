@@ -2,6 +2,7 @@ package cn.edu.techgroup.outsourcing.modules.assignment.service;
 
 import cn.edu.techgroup.outsourcing.modules.assignment.dto.UpdateRequestMembersCommand;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberOptionVO;
+import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberRecommendationResultVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import java.util.List;
@@ -10,6 +11,10 @@ public interface AssignmentService {
 
     List<MemberOptionVO> listMemberOptions(
             String keyword,
+            LoginUser operator);
+
+    MemberRecommendationResultVO recommend(
+            Long requestId,
             LoginUser operator);
 
     RequestAssignmentVO get(

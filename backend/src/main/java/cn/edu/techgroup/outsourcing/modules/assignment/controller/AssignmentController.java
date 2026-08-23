@@ -3,6 +3,7 @@ package cn.edu.techgroup.outsourcing.modules.assignment.controller;
 import cn.edu.techgroup.outsourcing.common.api.ApiResponse;
 import cn.edu.techgroup.outsourcing.modules.assignment.dto.UpdateRequestMembersCommand;
 import cn.edu.techgroup.outsourcing.modules.assignment.service.AssignmentService;
+import cn.edu.techgroup.outsourcing.modules.assignment.vo.MemberRecommendationResultVO;
 import cn.edu.techgroup.outsourcing.modules.assignment.vo.RequestAssignmentVO;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import jakarta.validation.Valid;
@@ -35,6 +36,18 @@ public class AssignmentController {
 
         return ApiResponse.success(
                 assignmentService.get(
+                        requestId,
+                        loginUser));
+    }
+
+    @GetMapping("/recommendations")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<MemberRecommendationResultVO> recommendations(
+            @PathVariable Long requestId,
+            @AuthenticationPrincipal LoginUser loginUser) {
+
+        return ApiResponse.success(
+                assignmentService.recommend(
                         requestId,
                         loginUser));
     }

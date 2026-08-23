@@ -94,6 +94,19 @@ public interface UserMapper extends BaseMapper<UserEntity> {
             @Param("keyword") String keyword);
 
     @Select("""
+            SELECT id,
+                   account,
+                   display_name,
+                   role,
+                   status
+            FROM sys_user
+            WHERE status = 'ACTIVE'
+              AND role IN ('MEMBER', 'ADMIN')
+            ORDER BY display_name, id
+            """)
+    List<UserEntity> selectAllAssignableUsers();
+
+    @Select("""
             <script>
             SELECT id,
                    account,
