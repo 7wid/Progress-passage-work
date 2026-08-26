@@ -23,12 +23,24 @@ import {
   Wrench,
   X,
 } from '@lucide/vue'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { getRegistrationStatus } from '@/api/auth'
 import ProductLogo from '@/components/common/ProductLogo.vue'
 import LandingIllustration from '@/components/public/LandingIllustration.vue'
 import { PRODUCT_NAME } from '@/config/product'
 
 const mobileMenuOpen = ref(false)
+const registrationEnabled = ref<boolean | null>(null)
+
+const compactCtaLabel = computed(() =>
+  registrationEnabled.value === false ? '获取使用账号' : '提交新需求',
+)
+const heroCtaLabel = computed(() =>
+  registrationEnabled.value === false ? '先获取需求方账号' : '开始描述我的需求',
+)
+const finalCtaLabel = computed(() =>
+  registrationEnabled.value === false ? '查看账号获取方式' : '提交我的需求',
+)
 
 const serviceAreas = [
   {
@@ -135,7 +147,16 @@ function handleEscape(event: KeyboardEvent) {
   if (event.key === 'Escape') closeMobileMenu()
 }
 
+async function loadRegistrationAvailability() {
+  try {
+    registrationEnabled.value = (await getRegistrationStatus()).enabled
+  } catch {
+    registrationEnabled.value = false
+  }
+}
+
 onMounted(() => {
+  void loadRegistrationAvailability()
   document.addEventListener('keydown', handleEscape)
   if (!('IntersectionObserver' in window)) {
     document.querySelectorAll<HTMLElement>('[data-reveal]').forEach((element) => {
@@ -182,7 +203,7 @@ onBeforeUnmount(() => {
         <div class="landing-header__actions">
           <RouterLink class="landing-link-button" to="/login">登录查看进度</RouterLink>
           <RouterLink class="landing-button landing-button--compact" to="/register"
-            >提交新需求<ArrowRight :size="16" aria-hidden="true"
+            >{{ compactCtaLabel }}<ArrowRight :size="16" aria-hidden="true"
           /></RouterLink>
         </div>
         <button
@@ -211,9 +232,9 @@ onBeforeUnmount(() => {
         ><a href="#assurance" @click="closeMobileMenu">服务方式</a
         ><a href="#faq" @click="closeMobileMenu">常见问题</a>
         <RouterLink to="/login" @click="closeMobileMenu">登录查看进度</RouterLink
-        ><RouterLink class="landing-button" to="/register" @click="closeMobileMenu"
-          >提交新需求</RouterLink
-        >
+        ><RouterLink class="landing-button" to="/register" @click="closeMobileMenu">{{
+          compactCtaLabel
+        }}</RouterLink>
       </nav>
     </header>
 
@@ -233,10 +254,13 @@ onBeforeUnmount(() => {
             </p>
             <div class="landing-hero__actions">
               <RouterLink class="landing-button landing-button--hero" to="/register"
-                >开始描述我的需求<ArrowRight :size="18" aria-hidden="true"
+                >{{ heroCtaLabel }}<ArrowRight :size="18" aria-hidden="true"
               /></RouterLink>
               <a class="landing-secondary-button" href="#journey">先看看怎么进行</a>
             </div>
+            <p v-if="registrationEnabled === false" class="landing-hero__access-note">
+              当前采用受控开通方式，请先查看如何获取需求方账号。
+            </p>
             <ul class="landing-hero__checks" aria-label="服务特点">
               <li><Check :size="16" aria-hidden="true" /> 无需预先懂技术</li>
               <li><Check :size="16" aria-hidden="true" /> 进度与责任人透明</li>
@@ -413,7 +437,7 @@ onBeforeUnmount(() => {
               平台不会代替真实沟通，它负责保存共识、提醒关键节点，并让每一次讨论都能沉淀为明确行动。
             </p>
             <RouterLink class="landing-inline-link" to="/register"
-              >把你的问题告诉我们 <ArrowRight :size="17" aria-hidden="true"
+              >{{ finalCtaLabel }} <ArrowRight :size="17" aria-hidden="true"
             /></RouterLink>
           </div>
           <figure class="landing-editorial__photo" data-reveal>
@@ -456,7 +480,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="landing-cta__actions">
             <RouterLink class="landing-button landing-button--light" to="/register"
-              >提交我的需求 <ArrowRight :size="18" aria-hidden="true" /></RouterLink
+              >{{ finalCtaLabel }} <ArrowRight :size="18" aria-hidden="true" /></RouterLink
             ><RouterLink class="landing-cta__login" to="/login">已有账号，查看进度</RouterLink>
           </div>
         </div>
@@ -716,6 +740,17 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 34px;
+}
+.landing-hero__access-note {
+  display: inline-flex;
+  margin: 12px 0 0;
+  padding: 7px 10px;
+  color: #7c4a03;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 .landing-button--hero {
   min-height: 52px;

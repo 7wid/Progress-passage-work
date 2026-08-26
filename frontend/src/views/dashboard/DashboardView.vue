@@ -16,6 +16,7 @@ import {
 import { useRouter } from 'vue-router'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
+import RequesterActionCenter from '@/components/requests/RequesterActionCenter.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { RequestStatus, RequestSummary } from '@/types/request'
 
@@ -34,6 +35,10 @@ const errorMessage = ref('')
 const total = ref(0)
 const recent = ref<RequestSummary[]>([])
 const counts = ref<Partial<Record<RequestStatus, number>>>({})
+const requesterActionItems = ref<RequestSummary[]>([])
+const requesterActionTotal = ref(0)
+
+const requesterActionStatuses: RequestStatus[] = ['PENDING_ACCEPTANCE', 'NEED_MORE_INFO', 'DRAFT']
 
 const requesterCards: MetricConfig[] = [
   {
@@ -106,7 +111,7 @@ const introDescription = computed(() =>
     ? '从需求发起到成果验收，在这里查看每一步进展。'
     : '集中查看待响应、待分配与执行中的服务需求。',
 )
-const activeLabel = computed(() => (authStore.user?.role === 'REQUESTER' ? '进行中' : '待推进'))
+const activeLabel = computed(() => (authStore.user?.role === 'REQUESTER' ? '待我处理' : '待推进'))
 const recentTitle = computed(() => (authStore.user?.role === 'REQUESTER' ? '最近更新' : '最近需求'))
 const recentDescription = computed(() =>
   authStore.user?.role === 'REQUESTER' ? '关注状态发生变化的需求' : '按最近更新时间排列',
@@ -126,31 +131,60 @@ const today = new Intl.DateTimeFormat('zh-CN', {
   day: 'numeric',
   weekday: 'long',
 }).format(new Date())
-const activeTotal = computed(() =>
-  cards.value
+const activeTotal = computed(() => {
+  if (authStore.user?.role === 'REQUESTER') return requesterActionTotal.value
+  return cards.value
     .filter((card) => card.status !== 'COMPLETED')
-    .reduce((sum, card) => sum + (counts.value[card.status] ?? 0), 0),
-)
+    .reduce((sum, card) => sum + (counts.value[card.status] ?? 0), 0)
+})
 
 async function loadDashboard() {
   loading.value = true
   errorMessage.value = ''
   try {
+    const isRequester = authStore.user?.role === 'REQUESTER'
+    const queriedStatuses = Array.from(
+      new Set([
+        ...cards.value.map((card) => card.status),
+        ...(isRequester ? requesterActionStatuses : []),
+      ]),
+    )
     const [latest, ...statusResults] = await Promise.all([
       getRequests({ page: 1, pageSize: 5, sort: 'NEWEST' }),
-      ...cards.value.map((card) =>
-        getRequests({ page: 1, pageSize: 1, status: card.status, sort: 'NEWEST' }),
+      ...queriedStatuses.map((status) =>
+        getRequests({
+          page: 1,
+          pageSize: requesterActionStatuses.includes(status) ? 5 : 1,
+          status,
+          sort: 'NEWEST',
+        }),
       ),
     ])
+    const resultsByStatus = new Map(
+      queriedStatuses.map((status, index) => [status, statusResults[index]]),
+    )
     total.value = latest.total
     recent.value = latest.items
     counts.value = Object.fromEntries(
-      cards.value.map((card, index) => [card.status, statusResults[index]?.total ?? 0]),
+      cards.value.map((card) => [card.status, resultsByStatus.get(card.status)?.total ?? 0]),
     )
+    requesterActionItems.value = isRequester
+      ? requesterActionStatuses
+          .flatMap((status) => resultsByStatus.get(status)?.items ?? [])
+          .slice(0, 5)
+      : []
+    requesterActionTotal.value = isRequester
+      ? requesterActionStatuses.reduce(
+          (sum, status) => sum + (resultsByStatus.get(status)?.total ?? 0),
+          0,
+        )
+      : 0
   } catch {
     total.value = 0
     recent.value = []
     counts.value = {}
+    requesterActionItems.value = []
+    requesterActionTotal.value = 0
     errorMessage.value = '首页数据加载失败，请稍后重试'
   } finally {
     loading.value = false
@@ -206,6 +240,13 @@ onMounted(loadDashboard)
         <el-button link type="primary" @click="loadDashboard">重新加载</el-button>
       </template>
     </el-alert>
+
+    <RequesterActionCenter
+      v-if="authStore.user?.role === 'REQUESTER'"
+      :items="requesterActionItems"
+      :total="requesterActionTotal"
+      :loading="loading"
+    />
 
     <div class="overview-heading">
       <div>

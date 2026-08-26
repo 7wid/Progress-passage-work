@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft,
@@ -133,6 +133,18 @@ const confirmableEvaluationId = computed(() =>
   isAdmin.value && pendingRejection.value ? (latestEvaluation.value?.id ?? null) : null,
 )
 
+async function focusRequestedSection() {
+  if (route.hash !== '#delivery-acceptance') return
+  await nextTick()
+  const target = document.getElementById('delivery-acceptance')
+  if (!target) return
+  const reduceMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  target.focus({ preventScroll: true })
+}
+
 async function loadPage(retryCount = 0) {
   const id = String(route.params.id ?? '')
   const sequence = ++loadSequence
@@ -211,6 +223,7 @@ async function loadPage(retryCount = 0) {
     assignment.value = requestAssignment
     progressSnapshot.value = requestProgress
     deliveryAcceptanceSnapshot.value = deliveryAcceptance
+    await focusRequestedSection()
 
     const [requestAttachmentsResult, pendingDeliveryAttachmentsResult] = await Promise.allSettled([
       getRequestAttachments(id, 'REQUEST'),
@@ -439,6 +452,13 @@ watch(
   () => route.params.id,
   () => void loadPage(),
   { immediate: true },
+)
+
+watch(
+  () => route.hash,
+  () => {
+    if (detail.value) void focusRequestedSection()
+  },
 )
 </script>
 
@@ -680,19 +700,26 @@ watch(
         @conflict="handleProgressConflict"
       />
 
-      <DeliveryAcceptancePanel
+      <section
         v-if="deliveryAcceptanceSnapshot"
-        :key="deliveryAcceptanceSnapshot.requestVersion"
-        :snapshot="deliveryAcceptanceSnapshot"
-        :pending-attachments="pendingDeliveryAttachmentSnapshot?.attachments ?? []"
-        :pending-attachments-ready="
-          pendingDeliveryAttachmentSnapshot !== null &&
-          pendingDeliveryAttachmentError === '' &&
-          !pendingDeliveryAttachmentLoading
-        "
-        @updated="handleDeliveryAcceptanceUpdated"
-        @conflict="handleDeliveryAcceptanceConflict"
-      />
+        id="delivery-acceptance"
+        class="detail-anchor"
+        tabindex="-1"
+        aria-label="交付与验收"
+      >
+        <DeliveryAcceptancePanel
+          :key="deliveryAcceptanceSnapshot.requestVersion"
+          :snapshot="deliveryAcceptanceSnapshot"
+          :pending-attachments="pendingDeliveryAttachmentSnapshot?.attachments ?? []"
+          :pending-attachments-ready="
+            pendingDeliveryAttachmentSnapshot !== null &&
+            pendingDeliveryAttachmentError === '' &&
+            !pendingDeliveryAttachmentLoading
+          "
+          @updated="handleDeliveryAcceptanceUpdated"
+          @conflict="handleDeliveryAcceptanceConflict"
+        />
+      </section>
 
       <AdminRequestActions
         v-if="isAdmin"
@@ -811,6 +838,16 @@ watch(
   color: var(--color-text-secondary);
   font-size: 14px;
   line-height: 1.8;
+}
+
+.detail-anchor {
+  scroll-margin-top: 92px;
+  outline: none;
+}
+
+.detail-anchor:focus-visible {
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 @media (max-width: 700px) {

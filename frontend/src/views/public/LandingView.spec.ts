@@ -1,10 +1,19 @@
-import { RouterLinkStub, shallowMount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, RouterLinkStub, shallowMount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProductLogo from '@/components/common/ProductLogo.vue'
 import LandingIllustration from '@/components/public/LandingIllustration.vue'
 import LandingView from './LandingView.vue'
+import { getRegistrationStatus } from '@/api/auth'
+
+vi.mock('@/api/auth', () => ({ getRegistrationStatus: vi.fn() }))
+
+const getRegistrationStatusMock = vi.mocked(getRegistrationStatus)
 
 describe('LandingView', () => {
+  beforeEach(() => {
+    getRegistrationStatusMock.mockResolvedValue({ enabled: true, emailSuffix: null })
+  })
+
   it('以需求方语言展示服务范围、统一插画与完整协作流程', () => {
     const wrapper = shallowMount(LandingView, {
       global: { stubs: { RouterLink: RouterLinkStub } },
@@ -30,6 +39,19 @@ describe('LandingView', () => {
     const destinations = wrapper.findAllComponents(RouterLinkStub).map((link) => link.props('to'))
     expect(destinations).toContain('/login')
     expect(destinations).toContain('/register')
+  })
+
+  it('自助注册关闭时把主入口调整为账号获取指引', async () => {
+    getRegistrationStatusMock.mockResolvedValue({ enabled: false, emailSuffix: null })
+    const wrapper = shallowMount(LandingView, {
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('先获取需求方账号')
+    expect(wrapper.text()).toContain('当前采用受控开通方式')
+    expect(wrapper.text()).not.toContain('开始描述我的需求')
   })
 
   it('大标题使用明确分行代替逗号断句', () => {
