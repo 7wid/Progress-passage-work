@@ -1,4 +1,5 @@
 # 计算机技术组外包需求管理系统
+运行:https://job.gxutech.xyz/
 
 [![CI](https://github.com/7wid/Progress-passage-work/actions/workflows/ci.yml/badge.svg)](https://github.com/7wid/Progress-passage-work/actions/workflows/ci.yml)
 

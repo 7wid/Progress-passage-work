@@ -9,6 +9,7 @@
   --color-background: #f6f8fc;
   --color-surface: #ffffff;
   --color-surface-secondary: #f1f5f9;
+  --color-surface-muted: #f8fafc;
   --color-surface-hover: #eef2f7;
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
@@ -17,7 +18,11 @@
   --color-border-subtle: #e8edf5;
   --color-info: #2563eb;
   --color-success: #059669;
+  --color-success-strong: #047857;
+  --color-success-soft: #ecfdf5;
   --color-warning: #d97706;
+  --color-warning-strong: #b45309;
+  --color-warning-soft: #fffbeb;
   --color-danger: #dc2626;
   --color-purple: #7c3aed;
   --color-focus-ring: rgb(37 99 235 / 18%);
@@ -33,6 +38,7 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --z-sticky: 40;
   --z-header: 30;
+  --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 
   --el-color-primary: var(--color-primary);
   --el-color-primary-light-3: #5b82ef;

@@ -3,7 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { ArrowLeft, UserPlus } from '@lucide/vue'
+import { ArrowLeft, KeyRound, LogIn, UserPlus } from '@lucide/vue'
 import { getRegistrationStatus, register } from '@/api/auth'
 import { getApiErrorMessage } from '@/api/http'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -114,9 +114,35 @@ onMounted(async () => {
     wide
   >
     <div v-loading="checking" class="register-content">
-      <el-result v-if="!checking && !enabled" icon="warning" title="自助注册未开放">
+      <el-result
+        v-if="!checking && !enabled"
+        icon="warning"
+        title="当前采用受控开通方式"
+        sub-title="为避免无效账号和信息泄露，当前环境暂未开放自行注册。"
+      >
         <template #extra>
-          <el-button type="primary" @click="router.replace('/login')">返回登录</el-button>
+          <div class="access-guide">
+            <span class="access-guide__icon" aria-hidden="true">
+              <KeyRound :size="22" :stroke-width="1.8" />
+            </span>
+            <div>
+              <strong>如何开始使用</strong>
+              <p>
+                请通过计算机技术组公布的服务渠道联系管理员，说明姓名、院系或组织及常用邮箱，并确认需求方账号的开通安排。
+              </p>
+              <p>获得账号后直接登录即可发起需求；不要通过聊天发送个人密码。</p>
+            </div>
+          </div>
+          <div class="access-actions">
+            <el-button @click="router.replace('/')">
+              <ArrowLeft :size="16" aria-hidden="true" />
+              返回首页
+            </el-button>
+            <el-button type="primary" @click="router.replace('/login')">
+              <LogIn :size="16" aria-hidden="true" />
+              已有账号，去登录
+            </el-button>
+          </div>
         </template>
       </el-result>
       <el-form
@@ -182,6 +208,53 @@ onMounted(async () => {
   min-height: 180px;
 }
 
+.access-guide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto 18px;
+  padding: 16px;
+  color: var(--color-text-secondary);
+  text-align: left;
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+}
+
+.access-guide__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: var(--color-primary-strong);
+  background: var(--color-surface);
+  border-radius: 50%;
+}
+
+.access-guide strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+}
+
+.access-guide p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.access-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.access-actions :deep(.el-button span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .register-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -215,6 +288,16 @@ onMounted(async () => {
   .actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .access-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .access-actions :deep(.el-button) {
+    min-height: 44px;
+    margin: 0;
   }
 }
 </style>
