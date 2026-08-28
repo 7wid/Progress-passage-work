@@ -13,6 +13,13 @@ import org.apache.ibatis.annotations.Update;
 public interface UserMapper extends BaseMapper<UserEntity> {
 
     @Select("""
+            SELECT * FROM sys_user
+            WHERE id = #{requesterId} AND role = 'REQUESTER'
+            FOR UPDATE
+            """)
+    UserEntity selectRequesterForUpdate(@Param("requesterId") Long requesterId);
+
+    @Select("""
             SELECT *
             FROM sys_user FORCE INDEX (PRIMARY)
             WHERE id = #{targetUserId}

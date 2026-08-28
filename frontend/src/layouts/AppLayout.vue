@@ -19,6 +19,7 @@ import {
   Settings,
   Tags,
   UsersRound,
+  UserRoundPlus,
   X,
 } from '@lucide/vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
@@ -101,6 +102,12 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
         visible: isAdmin.value,
       },
       { label: '分类管理', to: '/admin/categories', icon: markRaw(Tags), visible: isAdmin.value },
+      {
+        label: '需求方账号',
+        to: '/admin/requesters',
+        icon: markRaw(UserRoundPlus),
+        visible: isAdmin.value,
+      },
       {
         label: '数据概览',
         to: '/admin/statistics',
