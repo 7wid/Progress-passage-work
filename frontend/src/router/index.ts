@@ -11,6 +11,7 @@ const RequestCreateView = () => import('@/views/requests/RequestCreateView.vue')
 const RequestDetailView = () => import('@/views/requests/RequestDetailView.vue')
 const WorkspaceView = () => import('@/views/workspace/WorkspaceView.vue')
 const MemberManagementView = () => import('@/views/admin/MemberManagementView.vue')
+const RequesterManagementView = () => import('@/views/admin/RequesterManagementView.vue')
 const CategoryManagementView = () => import('@/views/admin/CategoryManagementView.vue')
 const StatisticsView = () => import('@/views/admin/StatisticsView.vue')
 const AuditLogView = () => import('@/views/admin/AuditLogView.vue')
@@ -53,6 +54,12 @@ const router = createRouter({
           path: '/admin/members',
           name: 'admin-members',
           component: MemberManagementView,
+          meta: { roles: ['ADMIN'] },
+        },
+        {
+          path: '/admin/requesters',
+          name: 'admin-requesters',
+          component: RequesterManagementView,
           meta: { roles: ['ADMIN'] },
         },
         {

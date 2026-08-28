@@ -27,6 +27,8 @@ const actionOptions = [
   ['MEMBER_CREATE', '创建成员'],
   ['MEMBER_UPDATE', '更新成员'],
   ['MEMBER_STATUS', '变更成员状态'],
+  ['REQUESTER_CREATE', '开通需求方账号'],
+  ['REQUESTER_STATUS', '变更需求方账号状态'],
   ['CATEGORY_CREATE', '创建分类'],
   ['CATEGORY_UPDATE', '更新分类'],
   ['CATEGORY_STATUS', '变更分类状态'],
