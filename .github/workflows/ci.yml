@@ -125,3 +125,4 @@ jobs:
           grep -F 'http://127.0.0.1/actuator/health' deploy/server/docker-compose.yml
           grep -F 'readonly BACKUP_DIR="/data/volumes/tech-request-prod/backups"' deploy/server/deploy.sh
           grep -F -- '--project-directory "${DEPLOY_DIR}"' deploy/server/deploy.sh
+          grep -F 'cd -- "${DEPLOY_DIR}"' deploy/server/deploy.sh

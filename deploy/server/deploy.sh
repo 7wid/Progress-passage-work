@@ -28,13 +28,16 @@ fail() {
 compose() {
   local release_file="$1"
   shift
-  docker compose \
-    --project-directory "${DEPLOY_DIR}" \
-    --project-name "${PROJECT_NAME}" \
-    --env-file "${SECRETS_FILE}" \
-    --env-file "${release_file}" \
-    --file "${COMPOSE_FILE}" \
-    "$@"
+  (
+    cd -- "${DEPLOY_DIR}"
+    docker compose \
+      --project-directory "${DEPLOY_DIR}" \
+      --project-name "${PROJECT_NAME}" \
+      --env-file "${SECRETS_FILE}" \
+      --env-file "${release_file}" \
+      --file "${COMPOSE_FILE}" \
+      "$@"
+  )
 }
 
 [[ $# -eq 1 ]] || { usage; exit 64; }
