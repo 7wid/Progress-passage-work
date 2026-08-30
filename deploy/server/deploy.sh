@@ -4,14 +4,16 @@ IFS=$'\n\t'
 umask 077
 
 readonly PROJECT_NAME="tech-request-prod"
-readonly DEPLOY_DIR="/data/services/tech-request-prod"
+readonly DEPLOY_DIR="/home/Ted_Kasane/tech-request-prod-deploy"
 readonly COMPOSE_FILE="${DEPLOY_DIR}/docker-compose.yml"
 readonly SECRETS_FILE="${DEPLOY_DIR}/.env.prod"
 readonly RELEASE_FILE="${DEPLOY_DIR}/release.env"
 readonly HISTORY_DIR="${DEPLOY_DIR}/history"
-readonly BACKUP_DIR="/data/volumes/tech-request-prod/backups"
+readonly BACKUP_DIR="/home/Ted_Kasane/tech-request-prod-backups"
 readonly LOCK_FILE="${DEPLOY_DIR}/deploy.lock"
-readonly MIN_FREE_BYTES="5368709120"
+readonly IMAGE_STORE_PATH="/var/lib/containerd"
+readonly MIN_BACKUP_FREE_BYTES="5368709120"
+readonly MIN_IMAGE_STORE_FREE_BYTES="5368709120"
 readonly GHCR_PREFIX="ghcr.io/7wid"
 
 usage() {
@@ -48,13 +50,20 @@ command -v gzip >/dev/null 2>&1 || fail "找不到 gzip。"
 [[ -f "${RELEASE_FILE}" ]] || fail "缺少 ${RELEASE_FILE}，首次切换前必须先记录当前镜像。"
 [[ -d "${HISTORY_DIR}" && -w "${HISTORY_DIR}" ]] || fail "${HISTORY_DIR} 不存在或不可写。"
 [[ -d "${BACKUP_DIR}" && -w "${BACKUP_DIR}" ]] || fail "${BACKUP_DIR} 不存在或不可写。"
+[[ -d "${IMAGE_STORE_PATH}" ]] || fail "缺少 Docker containerd 镜像存储目录 ${IMAGE_STORE_PATH}。"
 
 secrets_mode="$(stat -c '%a' "${SECRETS_FILE}")"
 [[ "${secrets_mode}" == "600" ]] || fail "${SECRETS_FILE} 权限必须为 600，当前为 ${secrets_mode}。"
 
-available_bytes="$(df --output=avail -B1 "${BACKUP_DIR}" | tail -n 1 | tr -d ' ')"
-[[ "${available_bytes}" =~ ^[0-9]+$ ]] || fail "无法读取备份目录剩余空间。"
-(( available_bytes >= MIN_FREE_BYTES )) || fail "备份磁盘剩余空间不足 5 GiB，不执行部署。"
+backup_available_bytes="$(df --output=avail -B1 "${BACKUP_DIR}" | tail -n 1 | tr -d ' ')"
+[[ "${backup_available_bytes}" =~ ^[0-9]+$ ]] || fail "无法读取备份目录剩余空间。"
+(( backup_available_bytes >= MIN_BACKUP_FREE_BYTES )) \
+  || fail "备份目录所在分区剩余空间不足 5 GiB，不执行部署。"
+
+image_store_available_bytes="$(df --output=avail -B1 "${IMAGE_STORE_PATH}" | tail -n 1 | tr -d ' ')"
+[[ "${image_store_available_bytes}" =~ ^[0-9]+$ ]] || fail "无法读取 Docker 镜像存储分区剩余空间。"
+(( image_store_available_bytes >= MIN_IMAGE_STORE_FREE_BYTES )) \
+  || fail "Docker containerd 镜像存储分区剩余空间不足 5 GiB，不拉取镜像。"
 
 exec 9>"${LOCK_FILE}"
 flock -n 9 || fail "已有另一个部署任务正在运行。"
