@@ -98,3 +98,11 @@ jobs:
           --env-file deploy/.env.prod.example
           -f docker-compose.prod.yml
           config --quiet
+
+      - name: Validate server deployment Compose file
+        run: >-
+          docker compose
+          --env-file deploy/.env.prod.example
+          --env-file deploy/server/release.env.example
+          -f deploy/server/docker-compose.yml
+          config --quiet
