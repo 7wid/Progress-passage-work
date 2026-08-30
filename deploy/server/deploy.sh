@@ -9,7 +9,7 @@ readonly COMPOSE_FILE="${DEPLOY_DIR}/docker-compose.yml"
 readonly SECRETS_FILE="${DEPLOY_DIR}/.env.prod"
 readonly RELEASE_FILE="${DEPLOY_DIR}/release.env"
 readonly HISTORY_DIR="${DEPLOY_DIR}/history"
-readonly BACKUP_DIR="/home/Ted_Kasane/tech-request-prod-backups"
+readonly BACKUP_DIR="/data/volumes/tech-request-prod/backups"
 readonly LOCK_FILE="${DEPLOY_DIR}/deploy.lock"
 readonly IMAGE_STORE_PATH="/var/lib/containerd"
 readonly MIN_BACKUP_FREE_BYTES="5368709120"
@@ -29,6 +29,7 @@ compose() {
   local release_file="$1"
   shift
   docker compose \
+    --project-directory "${DEPLOY_DIR}" \
     --project-name "${PROJECT_NAME}" \
     --env-file "${SECRETS_FILE}" \
     --env-file "${release_file}" \

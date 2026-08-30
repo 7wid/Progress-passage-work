@@ -71,7 +71,7 @@ services:
           "curl",
           "--fail",
           "--silent",
-          "http://localhost:8080/actuator/health",
+          "http://127.0.0.1:8080/actuator/health",
         ]
       interval: 15s
       timeout: 5s
@@ -97,7 +97,7 @@ services:
           "wget",
           "--quiet",
           "--spider",
-          "http://localhost/actuator/health",
+          "http://127.0.0.1/actuator/health",
         ]
       interval: 15s
       timeout: 5s
