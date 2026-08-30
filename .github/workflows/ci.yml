@@ -109,3 +109,19 @@ jobs:
 
       - name: Validate server deployment script syntax
         run: bash -n deploy/server/deploy.sh
+
+      - name: Enforce deployment safety invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -En 'http://localhost(:[0-9]+)?/actuator/health' \
+            docker-compose.prod.yml deploy/server/docker-compose.yml; then
+            echo "Production health checks must use 127.0.0.1, not localhost." >&2
+            exit 1
+          fi
+          grep -F 'http://127.0.0.1:8080/actuator/health' docker-compose.prod.yml
+          grep -F 'http://127.0.0.1/actuator/health' docker-compose.prod.yml
+          grep -F 'http://127.0.0.1:8080/actuator/health' deploy/server/docker-compose.yml
+          grep -F 'http://127.0.0.1/actuator/health' deploy/server/docker-compose.yml
+          grep -F 'readonly BACKUP_DIR="/data/volumes/tech-request-prod/backups"' deploy/server/deploy.sh
+          grep -F -- '--project-directory "${DEPLOY_DIR}"' deploy/server/deploy.sh
