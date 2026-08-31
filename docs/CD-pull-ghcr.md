@@ -3,7 +3,8 @@
 ## 当前边界
 
 本改动只准备 GitHub Actions 发布版本记录，**不安装服务器定时任务，不连接 SSH，不更新任何生产容器**。
-合并本改动后仍不能称为“合并即自动上线”；第二阶段的服务器消费者尚未实现。
+仅合并发布端不能称为“合并即自动上线”。第二阶段代码和分步验收说明见 [服务器执行端](CD-pull-agent.md)；
+代码合并不会自动安装服务器脚本或启用定时任务。
 
 生产服务器已验证可以读取 GHCR 镜像清单，但连接 GitHub API 超时。
 因此采用“GitHub 发布记录 → 服务器主动读取 GHCR → 验证后部署”的方式。
@@ -56,7 +57,7 @@ CI 的 Configuration / validate 设置 TEST_RELEASE_DOCKER=1，
 这是因为记录要求同一 run_attempt 的前后端 build 标签成对存在；
 只重跑部分矩阵任务可能缺少另一组件的对应标签，届时安全失败，不拼接不同次构建。
 
-## 第一阶段合并后的人工验收（尚未执行）
+## 第一阶段合并后的人工验收清单
 
 1. 通过 PR 审核并合并，确认 main 的 CI 全部成功。
 2. 确认 Publish container images 的两项构建和 Publish production release record 都成功。
