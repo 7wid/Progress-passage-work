@@ -116,6 +116,14 @@ jobs:
           TEST_RELEASE_DOCKER: '1'
         run: python3 -m unittest discover -s deploy/ci/tests -v
 
+      - name: Test pull agent and deployment safety with fake Docker
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s deploy/server/tests -v
+
+      - name: Validate pull timer units
+        run: systemd-analyze verify deploy/server/systemd/tech-request-cd.service deploy/server/systemd/tech-request-cd.timer
+
       - name: Enforce deployment safety invariants
         shell: bash
         run: |

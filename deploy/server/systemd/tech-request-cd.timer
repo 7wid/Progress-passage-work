@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Tech Request release after each completed CD run
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=30s
+AccuracySec=15s
+Unit=tech-request-cd.service
+
+[Install]
+WantedBy=timers.target
