@@ -110,6 +110,12 @@ jobs:
       - name: Validate server deployment script syntax
         run: bash -n deploy/server/deploy.sh
 
+      - name: Test release record validation and metadata image
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          TEST_RELEASE_DOCKER: '1'
+        run: python3 -m unittest discover -s deploy/ci/tests -v
+
       - name: Enforce deployment safety invariants
         shell: bash
         run: |

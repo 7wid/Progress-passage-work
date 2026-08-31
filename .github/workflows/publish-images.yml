@@ -47,6 +47,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         id: buildx
@@ -66,6 +67,7 @@ jobs:
           images: ${{ matrix.image }}
           tags: |
             type=raw,value=sha-${{ github.event.workflow_run.head_sha || github.sha }}
+            type=raw,value=build-${{ github.run_id }}-${{ github.run_attempt }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha || github.sha }}
@@ -81,3 +83,111 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  release-record:
+    name: Publish production release record
+    needs: publish
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ghcr-production-release-record
+      cancel-in-progress: false
+    env:
+      RELEASE_IMAGE: ghcr.io/7wid/progress-passage-work-release
+      RELEASE_COMMIT: ${{ github.event.workflow_run.head_sha }}
+      CI_SEQUENCE: ${{ github.event.workflow_run.run_number }}
+      CI_RUN_ID: ${{ github.event.workflow_run.id }}
+
+    steps:
+      # Check inside the serialized job: a late older build must not move
+      # the production pointer backwards after a newer release was published.
+      - name: Check that this successful CI commit is still main
+        id: candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          current_main="$(timeout 30s gh api repos/7wid/Progress-passage-work/git/ref/heads/main --jq .object.sha)"
+          [[ "$current_main" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$current_main" != "$RELEASE_COMMIT" ]]; then
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+            echo 'Skipped release record: main has advanced. Existing production pointer is unchanged.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout the successful CI commit
+        if: steps.candidate.outputs.publish == 'true'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        if: steps.candidate.outputs.publish == 'true'
+        id: buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GitHub Container Registry
+        if: steps.candidate.outputs.publish == 'true'
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve this build's digests and generate the release record
+        if: steps.candidate.outputs.publish == 'true'
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          build_tag="build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          for component in backend frontend; do
+            timeout 60s docker buildx imagetools inspect \
+              "ghcr.io/7wid/progress-passage-work-${component}:${build_tag}" \
+              --format '{{json .Manifest}}' > "${RUNNER_TEMP}/${component}-manifest.json"
+          done
+          python3 deploy/ci/release_record.py \
+            --commit "$RELEASE_COMMIT" \
+            --sequence "$CI_SEQUENCE" \
+            --ci-run-id "$CI_RUN_ID" \
+            --publish-run-id "$GITHUB_RUN_ID" \
+            --publish-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --backend-manifest "${RUNNER_TEMP}/backend-manifest.json" \
+            --frontend-manifest "${RUNNER_TEMP}/frontend-manifest.json" \
+            --output-dir "${RUNNER_TEMP}/production-release"
+
+      - name: Publish metadata image (never run as a container)
+        if: steps.candidate.outputs.publish == 'true'
+        id: release
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4 # v6
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: ${{ runner.temp }}/production-release
+          file: ${{ runner.temp }}/production-release/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: |
+            ${{ env.RELEASE_IMAGE }}:run-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ env.RELEASE_IMAGE }}:production
+
+      - name: Summarize release record publication
+        if: steps.candidate.outputs.publish == 'true'
+        shell: bash
+        env:
+          RELEASE_DIGEST: ${{ steps.release.outputs.digest }}
+        run: |
+          printf 'Release commit: `%s`\n\nMetadata: `%s@%s`\n\nThis publishes metadata only; no server deployment was executed.\n' \
+            "$RELEASE_COMMIT" "$RELEASE_IMAGE" "$RELEASE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
