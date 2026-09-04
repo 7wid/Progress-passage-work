@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Tech Request production retention weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=30min
+AccuracySec=1min
+Unit=tech-request-retention.service
+
+[Install]
+WantedBy=timers.target

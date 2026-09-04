@@ -1,0 +1,25 @@
+[Unit]
+Description=Send a test Tech Request production CD alert
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=Ted_Kasane
+Group=Ted_Kasane
+WorkingDirectory=/home/Ted_Kasane/tech-request-prod-deploy
+ExecStart=/usr/bin/python3 -B /home/Ted_Kasane/tech-request-prod-deploy/notify-failure.py --source test --test
+LoadCredential=smtp-username:/etc/tech-request-cd/smtp-username
+LoadCredential=smtp-password:/etc/tech-request-cd/smtp-password
+LoadCredential=alert-recipients:/etc/tech-request-cd/alert-recipients
+UMask=0077
+TimeoutStartSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/Ted_Kasane/tech-request-prod-deploy
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tech-request-cd-alert-test
