@@ -14,13 +14,17 @@
 
 | 文件 | 安装位置 / 权限 |
 | --- | --- |
-| deploy.sh、pull-agent.py | /home/Ted_Kasane/tech-request-prod-deploy/；Ted_Kasane 所有，750 |
+| deploy.sh、pull-agent.py、notify-failure.py、retention.py | /home/Ted_Kasane/tech-request-prod-deploy/；Ted_Kasane 所有，750 |
 | 原 docker-compose.yml | 保持原路径和640权限；本分支没有修改 Compose |
 | 原 .env.prod、release.env | 保持原路径和600权限；不上传、不打印 .env.prod |
 | pull-agent-state.json | 程序首次初始化生成，Ted_Kasane所有，600；不可删除来绕过保护 |
 | pull-agent.lock、deploy.lock | Ted_Kasane所有，600；不删除正在使用的锁文件 |
 | pull-agent.enabled | 真实部署的独立开关，600；内容必须严格是 enabled 加一个 LF 换行 |
+| retention.enabled、alert-state-*.json | Ted_Kasane所有，600；前者是清理独立开关，后者用于相同故障一小时限流 |
 | tech-request-cd.service、tech-request-cd.timer | /etc/systemd/system/；root所有，644；管理员安装 |
+| 告警与保留 service/timer | /etc/systemd/system/；root所有，644；管理员安装 |
+| SMTP credential | /etc/tech-request-cd/；root所有，600；只通过 systemd credential 提供给告警服务 |
+| 60-tech-request-retention.conf | /etc/systemd/journald.conf.d/；root所有，644；影响整机日志，须经主机管理员批准 |
 | history/pull-deploy-*.log、pull-state-before-resume-*.json | 部署目录内审计文件，600 |
 | MySQL、上传、业务日志、数据库备份 | 继续使用 /data/volumes/tech-request-prod 下原有目录 |
 
@@ -83,9 +87,9 @@ Configuration / validate 必须通过新增的 Linux 假 Docker 测试与 system
 Windows 本地测试会跳过 Linux锁/权限及 Bash集成测试，不把跳过当通过。
 只有 CI 和发布任务都通过后，才准备服务器安装包。
 
-安装只取同一个已审核提交中的4个文件：
-deploy/server/deploy.sh、deploy/server/pull-agent.py、
-deploy/server/systemd/tech-request-cd.service、deploy/server/systemd/tech-request-cd.timer。
+安装只取同一个已审核提交中的控制文件：deploy/server 下的4个脚本，
+systemd 下的2个 CD 单元、2个告警单元和2个保留单元。
+journald/60-tech-request-retention.conf 需另经主机管理员批准后安装。
 通过既有获准通道传输，记录文件SHA256，服务器端逐个核对。
 先检查目标、备份旧脚本/同名单元文件，再从同目录临时文件原子替换。
 保留所有 .env.prod、release.env、状态文件与业务数据，不覆盖整个部署目录。
@@ -142,9 +146,10 @@ last应记录本次序号，status应为ready，attempt应为空；三个容器h
 它不是秒级实时发布。不要设置 RemainAfterExit=yes，否则周期行为会受到影响。
 不同时设置 cron、另一个 timer 或后台循环执行同一脚本。
 
-本实现输出 journal 错误和失败状态，**尚未接入邮件/企业微信等外部通知**。
-正式启用前需由团队确定失败告警的接收人、通知渠道和 journal/备份保留策略；
-不要把无人查看的本地日志称为已完成故障告警。
+本实现通过 `OnFailure=tech-request-cd-alert@deployment.service` 调用外部邮件告警。
+正式启用前必须完成 credential 安装、测试邮件送达、保留任务 dry-run 和恢复验证；
+只配置了本地 journal、但邮件未送达时，不得称为已完成故障告警。
+完整安装与验证步骤见 [CD 邮件告警与本地保留策略](CD-email-alert-retention.md)。
 
 ## 暂停、故障与回退
 

@@ -122,7 +122,14 @@ jobs:
         run: python3 -m unittest discover -s deploy/server/tests -v
 
       - name: Validate pull timer units
-        run: systemd-analyze verify deploy/server/systemd/tech-request-cd.service deploy/server/systemd/tech-request-cd.timer
+        run: >-
+          systemd-analyze verify
+          deploy/server/systemd/tech-request-cd.service
+          deploy/server/systemd/tech-request-cd.timer
+          deploy/server/systemd/tech-request-cd-alert@.service
+          deploy/server/systemd/tech-request-cd-alert-test.service
+          deploy/server/systemd/tech-request-retention.service
+          deploy/server/systemd/tech-request-retention.timer
 
       - name: Enforce deployment safety invariants
         shell: bash
@@ -140,3 +147,9 @@ jobs:
           grep -F 'readonly BACKUP_DIR="/data/volumes/tech-request-prod/backups"' deploy/server/deploy.sh
           grep -F -- '--project-directory "${DEPLOY_DIR}"' deploy/server/deploy.sh
           grep -F 'cd -- "${DEPLOY_DIR}"' deploy/server/deploy.sh
+          grep -F 'OnFailure=tech-request-cd-alert@deployment.service' deploy/server/systemd/tech-request-cd.service
+          grep -F 'LoadCredential=smtp-password:/etc/tech-request-cd/smtp-password' deploy/server/systemd/tech-request-cd-alert@.service
+          grep -F 'DATABASE_MINIMUM = 14' deploy/server/retention.py
+          grep -F 'DATABASE_DAYS = 30' deploy/server/retention.py
+          grep -F 'AUDIT_DAYS = 180' deploy/server/retention.py
+          grep -F 'SystemMaxUse=512M' deploy/server/systemd/journald/60-tech-request-retention.conf
