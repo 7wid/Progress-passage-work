@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { ArrowLeft, KeyRound, LogIn, UserPlus } from '@lucide/vue'
+import { ArrowLeft, KeyRound, LogIn, RefreshCw, UserPlus } from '@lucide/vue'
 import { getRegistrationStatus, register } from '@/api/auth'
-import { getApiErrorMessage } from '@/api/http'
+import { getApiErrorMessage, getApiFieldErrors } from '@/api/http'
 import AuthLayout from '@/layouts/AuthLayout.vue'
+import { ACCOUNT_PATTERN, getRegistrationPasswordError } from '@/utils/authValidation'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
+const errorSummaryRef = ref<HTMLElement>()
 const loading = ref(false)
 const checking = ref(true)
 const enabled = ref(false)
+const statusError = ref(false)
+const submitError = ref('')
+const validationError = ref('')
+const serverFieldErrors = ref<Record<string, string>>({})
 const emailSuffix = ref<string | null>(null)
 const form = reactive({
   account: '',
@@ -27,9 +32,10 @@ const form = reactive({
 const rules: FormRules = {
   account: [
     { required: true, message: '请输入账号', trigger: 'blur' },
+    { min: 3, max: 64, message: '账号长度应为 3～64 个字符', trigger: 'blur' },
     {
-      pattern: /^[A-Za-z0-9._-]+$/,
-      message: '账号只能包含字母、数字、点、下划线和连字符',
+      pattern: ACCOUNT_PATTERN,
+      message: '账号须以字母或数字开头和结尾，可包含点、下划线和连字符',
       trigger: 'blur',
     },
   ],
@@ -50,11 +56,11 @@ const rules: FormRules = {
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 8, max: 72, message: '密码长度应为 8～72 个字符', trigger: 'blur' },
     {
       validator: (_rule, value: string, callback) => {
-        if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) {
-          callback(new Error('密码必须同时包含字母和数字'))
+        const error = getRegistrationPasswordError(value)
+        if (error) {
+          callback(new Error(error))
           return
         }
         callback()
@@ -75,35 +81,71 @@ const rules: FormRules = {
       trigger: 'blur',
     },
   ],
+  phone: [
+    {
+      pattern: /^$|^\+?[0-9()\- ]{6,32}$/,
+      message: '请输入有效手机号',
+      trigger: 'blur',
+    },
+  ],
+}
+
+const emailHelp = computed(() =>
+  emailSuffix.value ? `仅支持 ${emailSuffix.value} 后缀的邮箱。` : '用于账号识别和必要的服务联系。',
+)
+
+function clearFieldError(field: string) {
+  if (serverFieldErrors.value[field]) {
+    const nextErrors = { ...serverFieldErrors.value }
+    delete nextErrors[field]
+    serverFieldErrors.value = nextErrors
+  }
+  submitError.value = ''
+  validationError.value = ''
 }
 
 async function submit() {
   if (!formRef.value || loading.value || !enabled.value) return
+  submitError.value = ''
+  validationError.value = ''
+  serverFieldErrors.value = {}
   const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
+  if (!valid) {
+    validationError.value = '请检查下方标记的注册信息。'
+    await nextTick()
+    errorSummaryRef.value?.focus()
+    return
+  }
   loading.value = true
   try {
     await register(form)
-    ElMessage.success('账号注册成功，请登录')
-    await router.replace('/login')
+    await router.replace({ path: '/login', query: { registered: '1' } })
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '账号注册失败'))
+    serverFieldErrors.value = getApiFieldErrors(error)
+    submitError.value = getApiErrorMessage(error, '账号注册失败，请稍后重试')
+    await nextTick()
+    errorSummaryRef.value?.focus()
   } finally {
     loading.value = false
   }
 }
 
-onMounted(async () => {
+async function loadRegistrationStatus() {
+  checking.value = true
+  statusError.value = false
   try {
     const status = await getRegistrationStatus()
     enabled.value = status.enabled
     emailSuffix.value = status.emailSuffix
   } catch {
     enabled.value = false
+    statusError.value = true
   } finally {
     checking.value = false
   }
-})
+}
+
+onMounted(loadRegistrationStatus)
 </script>
 
 <template>
@@ -113,9 +155,32 @@ onMounted(async () => {
     description="完善基本信息后，即可发起需求并持续跟踪进展。"
     wide
   >
-    <div v-loading="checking" class="register-content">
+    <div class="register-content" :aria-busy="checking">
+      <div v-if="checking" class="registration-loading" role="status">
+        <el-skeleton :rows="6" animated />
+        <span class="sr-only">正在读取注册状态</span>
+      </div>
       <el-result
-        v-if="!checking && !enabled"
+        v-else-if="statusError"
+        icon="error"
+        title="暂时无法读取注册状态"
+        sub-title="请检查网络连接后重试；系统不会在状态不明时提交注册信息。"
+      >
+        <template #extra>
+          <div class="access-actions">
+            <el-button @click="router.replace('/login')">
+              <ArrowLeft :size="16" aria-hidden="true" />
+              返回登录
+            </el-button>
+            <el-button type="primary" @click="loadRegistrationStatus">
+              <RefreshCw :size="16" aria-hidden="true" />
+              重新检查
+            </el-button>
+          </div>
+        </template>
+      </el-result>
+      <el-result
+        v-else-if="!enabled"
         icon="warning"
         title="当前采用受控开通方式"
         sub-title="为避免无效账号和信息泄露，当前环境暂未开放自行注册。"
@@ -151,33 +216,84 @@ onMounted(async () => {
         :model="form"
         :rules="rules"
         label-position="top"
+        status-icon
+        scroll-to-error
         @submit.prevent="submit"
       >
+        <div
+          v-if="validationError || submitError"
+          ref="errorSummaryRef"
+          class="register-error"
+          role="alert"
+          tabindex="-1"
+        >
+          {{ validationError || submitError }}
+        </div>
         <div class="register-grid">
-          <el-form-item label="账号" prop="account">
-            <el-input v-model="form.account" maxlength="64" autocomplete="username" />
+          <el-form-item label="账号" prop="account" :error="serverFieldErrors.account">
+            <el-input
+              v-model="form.account"
+              maxlength="64"
+              autocomplete="username"
+              placeholder="3～64 个字符"
+              @input="clearFieldError('account')"
+            />
           </el-form-item>
-          <el-form-item label="姓名或称呼" prop="displayName">
-            <el-input v-model="form.displayName" maxlength="80" />
+          <el-form-item
+            label="姓名或称呼"
+            prop="displayName"
+            :error="serverFieldErrors.displayName"
+          >
+            <el-input
+              v-model="form.displayName"
+              maxlength="80"
+              autocomplete="name"
+              @input="clearFieldError('displayName')"
+            />
           </el-form-item>
-          <el-form-item label="邮箱" prop="email">
-            <el-input v-model="form.email" maxlength="160" autocomplete="email" />
+          <el-form-item label="邮箱" prop="email" :error="serverFieldErrors.email">
+            <el-input
+              v-model="form.email"
+              maxlength="160"
+              autocomplete="email"
+              inputmode="email"
+              @input="clearFieldError('email')"
+            />
+            <div class="field-help">{{ emailHelp }}</div>
           </el-form-item>
-          <el-form-item label="手机号（可选）">
-            <el-input v-model="form.phone" maxlength="32" autocomplete="tel" />
+          <el-form-item label="手机号（可选）" prop="phone" :error="serverFieldErrors.phone">
+            <el-input
+              v-model="form.phone"
+              maxlength="32"
+              autocomplete="tel"
+              inputmode="tel"
+              @input="clearFieldError('phone')"
+            />
           </el-form-item>
-          <el-form-item label="院系或组织（可选）">
-            <el-input v-model="form.department" maxlength="160" />
+          <el-form-item
+            label="院系或组织（可选）"
+            prop="department"
+            :error="serverFieldErrors.department"
+          >
+            <el-input
+              v-model="form.department"
+              maxlength="160"
+              autocomplete="organization"
+              @input="clearFieldError('department')"
+            />
           </el-form-item>
         </div>
         <div class="register-grid">
-          <el-form-item label="密码" prop="password">
+          <el-form-item label="密码" prop="password" :error="serverFieldErrors.password">
             <el-input
               v-model="form.password"
               type="password"
               show-password
               autocomplete="new-password"
+              maxlength="72"
+              @input="clearFieldError('password')"
             />
+            <div class="field-help">8～72 个字符，须同时包含字母和数字。</div>
           </el-form-item>
           <el-form-item label="确认密码" prop="confirmPassword">
             <el-input
@@ -185,6 +301,8 @@ onMounted(async () => {
               type="password"
               show-password
               autocomplete="new-password"
+              maxlength="72"
+              @input="clearFieldError('confirmPassword')"
             />
           </el-form-item>
         </div>
@@ -206,6 +324,34 @@ onMounted(async () => {
 <style scoped>
 .register-content {
   min-height: 180px;
+}
+
+.registration-loading {
+  min-height: 280px;
+}
+
+.register-error {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  color: var(--color-danger);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.register-error:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.field-help {
+  width: 100%;
+  margin-top: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .access-guide {

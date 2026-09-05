@@ -2,6 +2,7 @@ import { getApiStatus, http } from './http'
 import type { ApiResponse } from '@/types/api'
 import type { CurrentUser, LoginInput, RegisterInput, RegistrationStatus } from '@/types/auth'
 import type { UserProfile } from '@/types/profile'
+import { normalizeAccount } from '@/utils/authValidation'
 
 async function withFreshCsrf<T>(request: () => Promise<T>): Promise<T> {
   await http.get<ApiResponse<string>>('/auth/csrf')
@@ -17,7 +18,10 @@ async function withFreshCsrf<T>(request: () => Promise<T>): Promise<T> {
 
 export async function login(input: LoginInput): Promise<CurrentUser> {
   const response = await withFreshCsrf(() =>
-    http.post<ApiResponse<CurrentUser>>('/auth/login', input),
+    http.post<ApiResponse<CurrentUser>>('/auth/login', {
+      account: normalizeAccount(input.account),
+      password: input.password,
+    }),
   )
   return response.data.data
 }

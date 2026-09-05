@@ -85,12 +85,16 @@ describe('login api', () => {
       },
     } as never)
 
-    await expect(login({ account: 'admin', password: 'Password1' })).resolves.toMatchObject({
+    await expect(login({ account: ' ADMIN ', password: 'Password1' })).resolves.toMatchObject({
       account: 'admin',
       role: 'ADMIN',
     })
 
     expect(getMock).toHaveBeenCalledTimes(2)
     expect(postMock).toHaveBeenCalledTimes(2)
+    expect(postMock).toHaveBeenCalledWith('/auth/login', {
+      account: 'admin',
+      password: 'Password1',
+    })
   })
 })

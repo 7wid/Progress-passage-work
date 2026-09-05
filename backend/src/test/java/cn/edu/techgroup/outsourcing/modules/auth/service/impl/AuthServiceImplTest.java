@@ -6,17 +6,20 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import cn.edu.techgroup.outsourcing.config.LoginSecurityProperties;
 import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
 import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
 import cn.edu.techgroup.outsourcing.modules.auth.dto.LoginCommand;
 import cn.edu.techgroup.outsourcing.modules.user.enums.UserRole;
+import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -24,6 +27,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.SecurityContextRepository;
 
 class AuthServiceImplTest {
@@ -37,6 +41,8 @@ class AuthServiceImplTest {
     void successfulLoginIsAuditedBeforeSessionIsSaved() {
         AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
         SecurityContextRepository repository = mock(SecurityContextRepository.class);
+        SessionAuthenticationStrategy sessionStrategy = mock(SessionAuthenticationStrategy.class);
+        UserMapper userMapper = mock(UserMapper.class);
         AuditRecorder auditRecorder = mock(AuditRecorder.class);
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
@@ -55,6 +61,9 @@ class AuthServiceImplTest {
         AuthServiceImpl service = new AuthServiceImpl(
                 authenticationManager,
                 repository,
+                sessionStrategy,
+                new LoginSecurityProperties(5, Duration.ofMinutes(15)),
+                userMapper,
                 auditRecorder);
 
         var result = service.login(
@@ -72,12 +81,16 @@ class AuthServiceImplTest {
                 isNull(),
                 any());
         order.verify(repository).saveContext(any(), eq(request), eq(response));
+        verify(userMapper).resetLoginFailures(eq("admin"), any());
+        verify(sessionStrategy).onAuthentication(authentication, request, response);
     }
 
     @Test
     void failedLoginAuditsOutcomeWithoutAccountOrPassword() {
         AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
         SecurityContextRepository repository = mock(SecurityContextRepository.class);
+        SessionAuthenticationStrategy sessionStrategy = mock(SessionAuthenticationStrategy.class);
+        UserMapper userMapper = mock(UserMapper.class);
         AuditRecorder auditRecorder = mock(AuditRecorder.class);
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
@@ -86,6 +99,9 @@ class AuthServiceImplTest {
         AuthServiceImpl service = new AuthServiceImpl(
                 authenticationManager,
                 repository,
+                sessionStrategy,
+                new LoginSecurityProperties(5, Duration.ofMinutes(15)),
+                userMapper,
                 auditRecorder);
 
         org.junit.jupiter.api.Assertions.assertThrows(
@@ -103,5 +119,9 @@ class AuthServiceImplTest {
                 isNull(),
                 any());
         verifyNoInteractions(repository);
+        verify(userMapper).clearExpiredLoginLock(eq("sensitive-account"), any());
+        verify(userMapper).recordFailedLogin(
+                eq("sensitive-account"), eq(5), any(), any());
+        verifyNoInteractions(sessionStrategy);
     }
 }

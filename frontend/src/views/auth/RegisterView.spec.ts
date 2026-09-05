@@ -40,6 +40,7 @@ describe('RegisterView', () => {
         directives: { loading: () => undefined },
         stubs: {
           AuthLayout: { template: '<main><slot /></main>' },
+          'el-skeleton': true,
           'el-result': ResultStub,
           'el-button': ButtonStub,
           'el-form': true,
@@ -60,5 +61,36 @@ describe('RegisterView', () => {
     await buttons[1]?.trigger('click')
     expect(replaceMock).toHaveBeenNthCalledWith(1, '/')
     expect(replaceMock).toHaveBeenNthCalledWith(2, '/login')
+  })
+
+  it('注册状态读取失败时提供重试且不会展示表单', async () => {
+    getRegistrationStatusMock
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ enabled: true, emailSuffix: '@example.edu.cn' })
+
+    const wrapper = shallowMount(RegisterView, {
+      global: {
+        directives: { loading: () => undefined },
+        stubs: {
+          AuthLayout: { template: '<main><slot /></main>' },
+          'el-skeleton': true,
+          'el-result': ResultStub,
+          'el-button': ButtonStub,
+          'el-form': { template: '<form>注册表单</form>' },
+          'el-form-item': true,
+          'el-input': true,
+        },
+      },
+    })
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('暂时无法读取注册状态')
+    expect(wrapper.text()).not.toContain('注册表单')
+
+    await wrapper.findAll('button')[1]?.trigger('click')
+    await flushPromises()
+
+    expect(getRegistrationStatusMock).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('注册表单')
   })
 })
