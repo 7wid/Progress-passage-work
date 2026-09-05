@@ -107,10 +107,17 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
 
     private void validatePassword(String password) {
         if (password == null
+                || password.length() < 8
+                || password.length() > MAX_BCRYPT_PASSWORD_BYTES
                 || password.getBytes(StandardCharsets.UTF_8).length > MAX_BCRYPT_PASSWORD_BYTES) {
             throw new BusinessException(
                     ErrorCode.INVALID_ARGUMENT,
-                    "密码 UTF-8 编码不能超过 72 字节");
+                    "密码长度应为 8～72 个字符，且 UTF-8 编码不能超过 72 字节");
+        }
+        if (!password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_ARGUMENT,
+                    "密码必须同时包含字母和数字");
         }
     }
 

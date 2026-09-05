@@ -70,6 +70,36 @@ class UserRegistrationServiceImplTest {
         assertSame(ErrorCode.INVALID_ARGUMENT, exception.getErrorCode());
     }
 
+    @Test
+    void rejectsWeakPasswordWhenServiceIsCalledDirectly() {
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service(true, null).register(new RegisterUserCommand(
+                        "student01",
+                        "password",
+                        "学生用户",
+                        "user@example.edu.cn",
+                        null,
+                        null)));
+
+        assertSame(ErrorCode.INVALID_ARGUMENT, exception.getErrorCode());
+    }
+
+    @Test
+    void rejectsPasswordThatExceedsBcryptUtf8Limit() {
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service(true, null).register(new RegisterUserCommand(
+                        "student01",
+                        "Password1" + "中".repeat(22),
+                        "学生用户",
+                        "user@example.edu.cn",
+                        null,
+                        null)));
+
+        assertSame(ErrorCode.INVALID_ARGUMENT, exception.getErrorCode());
+    }
+
     private UserRegistrationServiceImpl service(boolean enabled, String suffix) {
         return new UserRegistrationServiceImpl(
                 new RegistrationProperties(enabled, suffix),

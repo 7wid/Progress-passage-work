@@ -34,6 +34,9 @@ app:
   registration:
     enabled: ${APP_REGISTRATION_ENABLED:false}
     email-suffix: ${APP_REGISTRATION_EMAIL_SUFFIX:}
+  login-security:
+    max-failed-attempts: ${APP_LOGIN_SECURITY_MAX_FAILED_ATTEMPTS:5}
+    lock-duration: ${APP_LOGIN_SECURITY_LOCK_DURATION:15m}
   bootstrap-admin:
     enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
     account: ${APP_BOOTSTRAP_ADMIN_ACCOUNT:admin}

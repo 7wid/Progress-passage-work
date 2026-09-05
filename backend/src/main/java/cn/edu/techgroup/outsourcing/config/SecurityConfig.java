@@ -2,9 +2,9 @@ package cn.edu.techgroup.outsourcing.config;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
-import cn.edu.techgroup.outsourcing.security.ActiveSessionValidationFilter;
 import cn.edu.techgroup.outsourcing.modules.audit.service.AuditActions;
 import cn.edu.techgroup.outsourcing.modules.audit.service.AuditRecorder;
+import cn.edu.techgroup.outsourcing.security.ActiveSessionValidationFilter;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
@@ -19,10 +19,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -109,6 +111,11 @@ public class SecurityConfig {
     @Bean
     public SecurityContextRepository securityContextRepository() {
         return new HttpSessionSecurityContextRepository();
+    }
+
+    @Bean
+    public SessionAuthenticationStrategy sessionAuthenticationStrategy() {
+        return new ChangeSessionIdAuthenticationStrategy();
     }
 
     @Bean

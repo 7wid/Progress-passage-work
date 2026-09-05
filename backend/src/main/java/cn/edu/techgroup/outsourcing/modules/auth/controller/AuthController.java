@@ -1,12 +1,12 @@
 package cn.edu.techgroup.outsourcing.modules.auth.controller;
 
-import jakarta.servlet.http.HttpServletResponse;
 import cn.edu.techgroup.outsourcing.common.api.ApiResponse;
 import cn.edu.techgroup.outsourcing.modules.auth.dto.LoginCommand;
 import cn.edu.techgroup.outsourcing.modules.auth.service.AuthService;
 import cn.edu.techgroup.outsourcing.modules.auth.vo.CurrentUserVO;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -31,15 +31,15 @@ public class AuthController {
         return ApiResponse.success(token.getToken());
     }
 
-@PostMapping("/login")
-public ApiResponse<CurrentUserVO> login(
-        @Valid @RequestBody LoginCommand command,
-        HttpServletRequest request,
-        HttpServletResponse response) {
+    @PostMapping("/login")
+    public ApiResponse<CurrentUserVO> login(
+            @Valid @RequestBody LoginCommand command,
+            HttpServletRequest request,
+            HttpServletResponse response) {
 
-    return ApiResponse.success(
-            authService.login(command, request, response));
-}
+        return ApiResponse.success(
+                authService.login(command, request, response));
+    }
 
     @GetMapping("/me")
     public ApiResponse<CurrentUserVO> me(@AuthenticationPrincipal LoginUser loginUser) {

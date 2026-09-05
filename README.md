@@ -214,8 +214,10 @@ Remove-Variable randomBytes
 | `APP_WEB_ORIGIN` | 是 | 浏览器实际访问源，例如 `https://requests.example.edu.cn`，不要带路径 |
 | `HTTP_PORT` | 否 | 宿主机 HTTP 端口，默认 `80` |
 | `SESSION_COOKIE_SECURE` | 是 | 正式 HTTPS 环境必须为 `true` |
-| `APP_REGISTRATION_ENABLED` | 否 | 是否开放需求方自助注册；生产默认关闭 |
+| `APP_REGISTRATION_ENABLED` | 否 | 是否开放需求方自助注册；生产默认关闭，正式开放时必须显式设为 `true` |
 | `APP_REGISTRATION_EMAIL_SUFFIX` | 否 | 可限制注册邮箱后缀，例如 `@example.edu.cn` |
+| `APP_LOGIN_SECURITY_MAX_FAILED_ATTEMPTS` | 否 | 连续登录失败锁定阈值，默认 `5`，允许 `3～20` |
+| `APP_LOGIN_SECURITY_LOCK_DURATION` | 否 | 达到阈值后的锁定时长，默认 `15m` |
 | `APP_BOOTSTRAP_ADMIN_ENABLED` | 首次启动 | 第一次启动设为 `true`，完成初始化后改为 `false` |
 | `APP_BOOTSTRAP_ADMIN_ACCOUNT` | 首次启动 | 初始管理员账号，默认 `admin` |
 | `APP_BOOTSTRAP_ADMIN_PASSWORD` | 首次启动 | 12～72 字符，含字母和数字，UTF-8 不超过 72 字节 |
@@ -225,6 +227,7 @@ Remove-Variable randomBytes
 
 - `deploy/.env.prod` 已被 Git 忽略，禁止提交、截图或发送给他人。
 - 不要复用示例密码。若手写值含空格或 `#`，应按 Compose env 文件语法正确加引号；推荐直接使用上述 Base64 随机值。
+- 已经部署过的服务器会继续使用原有 `.env.prod`。如果其中仍是 `APP_REGISTRATION_ENABLED=false`，发布新镜像不会自动开放注册，必须先评估开放范围并显式改为 `true`；校内服务建议同时设置邮箱后缀。
 - 如果只在隔离的内网用纯 HTTP 临时验收，需同时设置 `APP_WEB_ORIGIN=http://主机地址` 和 `SESSION_COOKIE_SECURE=false`。公网生产不得这样配置。
 
 Linux 主机还应限制文件权限：
@@ -284,7 +287,13 @@ curl.exe --fail http://localhost:80/actuator/health
 curl.exe --fail https://requests.example.edu.cn/actuator/health
 ```
 
-预期响应包含 `"status":"UP"`。随后打开页面，用 `.env.prod` 中的初始管理员账号登录，检查需求列表、附件上传和管理入口。
+预期响应包含 `"status":"UP"`。启用自助注册后，还应检查公开状态接口：
+
+```powershell
+curl.exe --fail https://requests.example.edu.cn/api/v1/users/registration
+```
+
+响应中的 `data.enabled` 应为 `true`，配置邮箱后缀时 `data.emailSuffix` 应与预期一致。随后使用一次性验收账号走通注册、登录和退出；不要使用生产管理员账号测试失败锁定策略。详细步骤见 `docs/正式注册与登录验收清单.md`。
 
 ### 6. 关闭首次管理员初始化
 

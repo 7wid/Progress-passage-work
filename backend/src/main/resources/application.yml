@@ -64,3 +64,6 @@ app:
   registration:
     enabled: true
     email-suffix: ""
+  login-security:
+    max-failed-attempts: 5
+    lock-duration: 15m

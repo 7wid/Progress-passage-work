@@ -2,6 +2,7 @@ package cn.edu.techgroup.outsourcing.modules.user.mapper;
 
 import cn.edu.techgroup.outsourcing.modules.user.entity.UserEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -11,6 +12,50 @@ import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface UserMapper extends BaseMapper<UserEntity> {
+
+    @Update("""
+            UPDATE sys_user
+            SET failed_login_count = 0,
+                locked_until = NULL,
+                updated_at = #{now}
+            WHERE account = #{account}
+              AND locked_until IS NOT NULL
+              AND locked_until <= #{now}
+            """)
+    int clearExpiredLoginLock(
+            @Param("account") String account,
+            @Param("now") Instant now);
+
+    @Update("""
+            UPDATE sys_user
+            SET locked_until = CASE
+                    WHEN failed_login_count + 1 >= #{maxAttempts}
+                    THEN #{lockedUntil}
+                    ELSE NULL
+                END,
+                failed_login_count = failed_login_count + 1,
+                updated_at = #{now}
+            WHERE account = #{account}
+              AND status = 'ACTIVE'
+              AND (locked_until IS NULL OR locked_until <= #{now})
+            """)
+    int recordFailedLogin(
+            @Param("account") String account,
+            @Param("maxAttempts") int maxAttempts,
+            @Param("lockedUntil") Instant lockedUntil,
+            @Param("now") Instant now);
+
+    @Update("""
+            UPDATE sys_user
+            SET failed_login_count = 0,
+                locked_until = NULL,
+                updated_at = #{now}
+            WHERE account = #{account}
+              AND (failed_login_count <> 0 OR locked_until IS NOT NULL)
+            """)
+    int resetLoginFailures(
+            @Param("account") String account,
+            @Param("now") Instant now);
 
     @Select("""
             SELECT * FROM sys_user
