@@ -40,6 +40,22 @@ export async function getRegistrationStatus(): Promise<RegistrationStatus> {
   return response.data.data
 }
 
+export async function getPasswordRecoveryStatus(): Promise<{ enabled: boolean; channel: 'EMAIL' }> {
+  const response =
+    await http.get<ApiResponse<{ enabled: boolean; channel: 'EMAIL' }>>('/auth/password-recovery')
+  return response.data.data
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await withFreshCsrf(() =>
+    http.post('/auth/password-recovery/requests', { email: email.trim().toLowerCase() }),
+  )
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await withFreshCsrf(() => http.post('/auth/password-recovery/reset', { token, newPassword }))
+}
+
 export async function register(input: RegisterInput): Promise<UserProfile> {
   const response = await withFreshCsrf(() =>
     http.post<ApiResponse<UserProfile>>('/users/register', {

@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Component
 public class ActiveSessionValidationFilter extends OncePerRequestFilter {
+
+    public static final String AUTHENTICATED_AT = "AUTHENTICATED_AT";
 
     private static final Logger LOGGER =
             LoggerFactory.getLogger(ActiveSessionValidationFilter.class);
@@ -63,6 +66,7 @@ public class ActiveSessionValidationFilter extends OncePerRequestFilter {
             UserEntity user = userMapper.selectById(loginUser.id());
             current = user != null
                     && user.getStatus() == UserStatus.ACTIVE
+                    && authenticatedAfterReset(request, user.getPasswordResetAt())
                     && user.getRole() == loginUser.role()
                     && Objects.equals(user.getAccount(), loginUser.account())
                     && Objects.equals(
@@ -95,6 +99,13 @@ public class ActiveSessionValidationFilter extends OncePerRequestFilter {
         } catch (IllegalStateException ignored) {
             // The session was already invalidated by another request.
         }
+    }
+
+    private boolean authenticatedAfterReset(HttpServletRequest request, Instant resetAt) {
+        if (resetAt == null) return true;
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute(AUTHENTICATED_AT) instanceof Instant time
+                && time.isAfter(resetAt);
     }
 
     private void writeUnauthenticated(HttpServletResponse response)

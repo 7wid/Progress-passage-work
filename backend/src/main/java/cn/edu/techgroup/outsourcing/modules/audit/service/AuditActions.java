@@ -7,6 +7,7 @@ public final class AuditActions {
     public static final String AUTH_LOGOUT = "AUTH_LOGOUT";
     public static final String PROFILE_UPDATED = "PROFILE_UPDATED";
     public static final String PASSWORD_CHANGED = "PASSWORD_CHANGED";
+    public static final String PASSWORD_RESET = "PASSWORD_RESET";
     public static final String USER_REGISTERED = "USER_REGISTERED";
     public static final String REQUEST_DRAFT_SAVED = "REQUEST_DRAFT_SAVED";
     public static final String REQUEST_CONTENT_UPDATED = "REQUEST_CONTENT_UPDATED";

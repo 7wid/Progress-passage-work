@@ -19,6 +19,7 @@ const registrationEnabled = ref(false)
 const submitError = ref('')
 const validationError = ref('')
 const registrationSuccess = route.query.registered === '1'
+const passwordResetSuccess = route.query.passwordReset === '1'
 const form = reactive({ account: '', password: '' })
 
 const rules: FormRules = {
@@ -80,6 +81,9 @@ onMounted(async () => {
     <div v-if="registrationSuccess" class="auth-feedback auth-feedback--success" role="status">
       账号注册成功，请使用刚创建的账号登录。
     </div>
+    <div v-if="passwordResetSuccess" class="auth-feedback auth-feedback--success" role="status">
+      密码已重置，旧登录状态已失效，请使用新密码登录。
+    </div>
     <div
       v-if="validationError || submitError"
       ref="errorSummaryRef"
@@ -124,6 +128,7 @@ onMounted(async () => {
           <template #prefix><LockKeyhole :size="17" aria-hidden="true" /></template>
         </el-input>
       </el-form-item>
+      <div class="forgot-entry"><RouterLink to="/forgot-password">忘记密码？</RouterLink></div>
       <el-button type="primary" native-type="submit" :loading="loading" class="login-card__submit">
         <LogIn :size="17" aria-hidden="true" />
         登录
@@ -140,6 +145,18 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.forgot-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin: -10px 0 16px;
+}
+
+.forgot-entry a {
+  padding: 8px 0 8px 8px;
+  color: var(--color-primary-strong);
+  font-size: 14px;
+}
+
 .login-form :deep(.el-form-item) {
   margin-bottom: 22px;
 }

@@ -57,7 +57,7 @@ class AuthServiceImplTest {
                 true);
         when(authenticationManager.authenticate(any())).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(principal);
-        when(request.getSession(false)).thenReturn(null);
+        when(request.getSession(true)).thenReturn(new org.springframework.mock.web.MockHttpSession());
         AuthServiceImpl service = new AuthServiceImpl(
                 authenticationManager,
                 repository,

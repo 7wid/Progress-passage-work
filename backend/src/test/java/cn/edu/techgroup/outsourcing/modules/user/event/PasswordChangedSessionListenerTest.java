@@ -13,6 +13,21 @@ import org.springframework.session.Session;
 class PasswordChangedSessionListenerTest {
 
     @Test
+    void recoveryWithoutCurrentSessionDeletesEverySession() {
+        @SuppressWarnings("unchecked")
+        FindByIndexNameSessionRepository<Session> repository =
+                mock(FindByIndexNameSessionRepository.class);
+        Session first = mock(Session.class);
+        Session second = mock(Session.class);
+        when(first.getId()).thenReturn("first");
+        when(second.getId()).thenReturn("second");
+        when(repository.findByPrincipalName("requester")).thenReturn(Map.of("first", first, "second", second));
+        new PasswordChangedSessionListener(repository).handle(new PasswordChangedEvent("requester", null));
+        verify(repository).deleteById("first");
+        verify(repository).deleteById("second");
+    }
+
+    @Test
     void keepsCurrentSessionAndDeletesOtherSessions() {
         @SuppressWarnings("unchecked")
         FindByIndexNameSessionRepository<Session> repository =

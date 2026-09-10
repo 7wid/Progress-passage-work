@@ -141,6 +141,48 @@ class ActiveSessionValidationFilterTest {
         verify(filterChain, never()).doFilter(request, response);
     }
 
+    @Test
+    void resetRevokesOldSessionsEvenIfPhysicalSessionDeletionFailed() throws Exception {
+        authenticate(loginUser(UserRole.ADMIN));
+        UserEntity resetUser = user(UserRole.ADMIN, UserStatus.ACTIVE);
+        resetUser.setPasswordResetAt(java.time.Instant.parse("2026-09-10T01:00:00Z"));
+        when(userMapper.selectById(9L)).thenReturn(resetUser);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession().setAttribute(ActiveSessionValidationFilter.AUTHENTICATED_AT,
+                java.time.Instant.parse("2026-09-10T00:00:00Z"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, filterChain);
+        assertEquals(401, response.getStatus());
+        verify(filterChain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void legacySessionWithoutAuthenticationTimestampIsRevokedAfterReset() throws Exception {
+        authenticate(loginUser(UserRole.ADMIN));
+        UserEntity resetUser = user(UserRole.ADMIN, UserStatus.ACTIVE);
+        resetUser.setPasswordResetAt(java.time.Instant.now());
+        when(userMapper.selectById(9L)).thenReturn(resetUser);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, filterChain);
+        assertEquals(401, response.getStatus());
+    }
+
+    @Test
+    void newLoginAfterResetRemainsValid() throws Exception {
+        authenticate(loginUser(UserRole.ADMIN));
+        UserEntity resetUser = user(UserRole.ADMIN, UserStatus.ACTIVE);
+        resetUser.setPasswordResetAt(java.time.Instant.parse("2026-09-10T01:00:00Z"));
+        when(userMapper.selectById(9L)).thenReturn(resetUser);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession().setAttribute(ActiveSessionValidationFilter.AUTHENTICATED_AT,
+                java.time.Instant.parse("2026-09-10T02:00:00Z"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, filterChain);
+        verify(filterChain).doFilter(request, response);
+    }
+
     private void authenticate(LoginUser loginUser) {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(

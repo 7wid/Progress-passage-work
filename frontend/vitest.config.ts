@@ -11,6 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Transform Element Plus so async-validator's CJS default export matches browser bundling.
+    server: { deps: { inline: ['element-plus'] } },
     setupFiles: ['./tests/setup.ts'],
     coverage: {
       reporter: ['text', 'html'],

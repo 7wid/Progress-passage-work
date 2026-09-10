@@ -38,6 +38,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function $resetSession() {
+    user.value = null
+    initialized.value = true
+  }
+
   return {
     user,
     initialized,
@@ -46,5 +51,6 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     loadCurrentUser,
     updateDisplayName,
+    $resetSession,
   }
 })

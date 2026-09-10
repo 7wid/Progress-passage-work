@@ -13,6 +13,19 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface UserMapper extends BaseMapper<UserEntity> {
 
+    @Select("SELECT * FROM sys_user WHERE email = #{email}")
+    UserEntity selectByRecoveryEmail(@Param("email") String email);
+
+    @Select("SELECT * FROM sys_user WHERE id = #{id} FOR UPDATE")
+    UserEntity selectRecoveryUserForUpdate(@Param("id") Long id);
+
+    @Update("""
+            UPDATE sys_user SET password_hash = #{passwordHash}, failed_login_count = 0,
+                locked_until = NULL, password_reset_at = #{updatedAt}, updated_at = #{updatedAt}
+            WHERE id = #{id} AND status = 'ACTIVE'
+            """)
+    int resetRecoveredPassword(UserEntity user);
+
     @Update("""
             UPDATE sys_user
             SET failed_login_count = 0,

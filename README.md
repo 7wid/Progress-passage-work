@@ -218,6 +218,13 @@ Remove-Variable randomBytes
 | `APP_REGISTRATION_EMAIL_SUFFIX` | 否 | 可限制注册邮箱后缀，例如 `@example.edu.cn` |
 | `APP_LOGIN_SECURITY_MAX_FAILED_ATTEMPTS` | 否 | 连续登录失败锁定阈值，默认 `5`，允许 `3～20` |
 | `APP_LOGIN_SECURITY_LOCK_DURATION` | 否 | 达到阈值后的锁定时长，默认 `15m` |
+| `APP_PASSWORD_RECOVERY_ENABLED` | 否 | 邮箱找回密码开关，默认 `false`，独立于注册开关 |
+| `APP_PASSWORD_RECOVERY_FROM` | 开启找回时必填 | SMTP 授权的发件邮箱 |
+| `APP_PASSWORD_RECOVERY_RESET_URL` | 开启找回时必填 | 可信 HTTPS 重置地址，例如 `https://job.gxutech.xyz/reset-password` |
+| `APP_PASSWORD_RECOVERY_TOKEN_TTL` | 否 | 重置链接有效期，默认 `15m`，允许 5～30 分钟 |
+| `SMTP_HOST` / `SMTP_PORT` | 开启找回时必填 | 邮件服务器，默认端口 `587` |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | 按邮件服务要求 | 专用发信账号与授权码，仅在服务器安全配置 |
+| `SMTP_AUTH` / `SMTP_STARTTLS_ENABLED` / `SMTP_SSL_ENABLED` | 否 | 默认 `true` / `true` / `false`；非本机 SMTP 必须使用 TLS |
 | `APP_BOOTSTRAP_ADMIN_ENABLED` | 首次启动 | 第一次启动设为 `true`，完成初始化后改为 `false` |
 | `APP_BOOTSTRAP_ADMIN_ACCOUNT` | 首次启动 | 初始管理员账号，默认 `admin` |
 | `APP_BOOTSTRAP_ADMIN_PASSWORD` | 首次启动 | 12～72 字符，含字母和数字，UTF-8 不超过 72 字节 |
@@ -294,6 +301,8 @@ curl.exe --fail https://requests.example.edu.cn/api/v1/users/registration
 ```
 
 响应中的 `data.enabled` 应为 `true`，配置邮箱后缀时 `data.emailSuffix` 应与预期一致。随后使用一次性验收账号走通注册、登录和退出；不要使用生产管理员账号测试失败锁定策略。详细步骤见 `docs/正式注册与登录验收清单.md`。
+
+忘记密码通过绑定邮箱的一次性链接验证身份，重置后注销所有旧会话。生产 SMTP 配置、限流策略、V8 迁移与验收步骤见 [邮箱找回密码部署与验收](docs/邮箱找回密码部署与验收.md)。邮件服务未配置时默认关闭找回功能；无需开启自助注册即可供已有账号使用。
 
 ### 6. 关闭首次管理员初始化
 

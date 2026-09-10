@@ -11,6 +11,9 @@ public enum ErrorCode {
     DATA_VERSION_CONFLICT(HttpStatus.CONFLICT, "数据已被其他操作更新，请刷新后重试"),
     REQUEST_STATUS_CONFLICT(HttpStatus.CONFLICT, "当前需求状态不允许此操作"),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "数据已存在"),
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "操作过于频繁，请稍后重试"),
+    RECOVERY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "密码找回暂时不可用，请稍后重试或联系管理员"),
+    INVALID_RESET_TOKEN(HttpStatus.BAD_REQUEST, "重置链接无效或已过期，请重新申请"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "服务器暂时无法处理请求");
 
     private final HttpStatus status;

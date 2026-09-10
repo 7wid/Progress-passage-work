@@ -4,7 +4,13 @@ import type { ApiErrorPayload } from '@/types/api'
 const XSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const XSRF_HEADER_NAME = 'X-XSRF-TOKEN'
 const SAFE_HTTP_METHODS = new Set(['get', 'head', 'options', 'trace'])
-const PUBLIC_ENTRY_PATHS = new Set(['/', '/login', '/register'])
+const PUBLIC_ENTRY_PATHS = new Set([
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+])
 
 export function isPublicEntryPath(pathname: string): boolean {
   return PUBLIC_ENTRY_PATHS.has(pathname)

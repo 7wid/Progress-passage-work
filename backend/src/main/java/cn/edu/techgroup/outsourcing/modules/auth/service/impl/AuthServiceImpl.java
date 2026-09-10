@@ -8,6 +8,7 @@ import cn.edu.techgroup.outsourcing.modules.auth.service.AuthService;
 import cn.edu.techgroup.outsourcing.modules.auth.vo.CurrentUserVO;
 import cn.edu.techgroup.outsourcing.modules.user.mapper.UserMapper;
 import cn.edu.techgroup.outsourcing.security.LoginUser;
+import cn.edu.techgroup.outsourcing.security.ActiveSessionValidationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Instant;
@@ -90,6 +91,7 @@ public class AuthServiceImpl implements AuthService {
                 Map.of("outcome", "SUCCESS", "role", loginUser.role().name()));
 
         sessionAuthenticationStrategy.onAuthentication(authentication, request, response);
+        request.getSession(true).setAttribute(ActiveSessionValidationFilter.AUTHENTICATED_AT, attemptTime);
 
         SecurityContext context =
                 SecurityContextHolder.createEmptyContext();

@@ -1,4 +1,19 @@
 spring:
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      "[mail.smtp.auth]": ${SMTP_AUTH:true}
+      "[mail.smtp.starttls.enable]": ${SMTP_STARTTLS_ENABLED:true}
+      "[mail.smtp.starttls.required]": ${SMTP_STARTTLS_ENABLED:true}
+      "[mail.smtp.ssl.enable]": ${SMTP_SSL_ENABLED:false}
+      "[mail.smtp.ssl.checkserveridentity]": true
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 5000
+      "[mail.smtp.writetimeout]": 5000
   application:
     name: tech-request-backend
   jackson:
@@ -38,6 +53,10 @@ mybatis-plus:
       id-type: auto
 
 management:
+  health:
+    # SMTP is optional; an upstream mail outage must not restart the entire application.
+    mail:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -55,6 +74,11 @@ springdoc:
     path: /swagger-ui.html
 
 app:
+  password-recovery:
+    enabled: ${APP_PASSWORD_RECOVERY_ENABLED:false}
+    from: ${APP_PASSWORD_RECOVERY_FROM:}
+    reset-url: ${APP_PASSWORD_RECOVERY_RESET_URL:}
+    token-ttl: ${APP_PASSWORD_RECOVERY_TOKEN_TTL:15m}
   web-origins:
     - http://localhost:5173
   upload-dir: ./data/uploads

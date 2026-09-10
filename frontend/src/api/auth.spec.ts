@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getRegistrationStatus, login, register } from './auth'
+import { getRegistrationStatus, login, register, requestPasswordReset, resetPassword } from './auth'
 import { getApiStatus, http } from './http'
 
 vi.mock('./http', () => ({
@@ -13,6 +13,31 @@ vi.mock('./http', () => ({
 const getMock = vi.mocked(http.get)
 const postMock = vi.mocked(http.post)
 const getApiStatusMock = vi.mocked(getApiStatus)
+
+describe('password recovery api', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getApiStatusMock.mockReturnValue(undefined)
+    getMock.mockResolvedValue({ data: { data: 'csrf' } } as never)
+    postMock.mockResolvedValue({ data: { data: 'ok' } } as never)
+  })
+
+  it('获取 CSRF 后提交规范化邮箱', async () => {
+    await requestPasswordReset(' User@Example.org ')
+    expect(getMock).toHaveBeenCalledWith('/auth/csrf')
+    expect(postMock).toHaveBeenCalledWith('/auth/password-recovery/requests', {
+      email: 'user@example.org',
+    })
+  })
+
+  it('凭证放入请求体，密码保持原样', async () => {
+    await resetPassword('token-value', ' Password123 ')
+    expect(postMock).toHaveBeenCalledWith('/auth/password-recovery/reset', {
+      token: 'token-value',
+      newPassword: ' Password123 ',
+    })
+  })
+})
 
 describe('registration api', () => {
   beforeEach(() => {
