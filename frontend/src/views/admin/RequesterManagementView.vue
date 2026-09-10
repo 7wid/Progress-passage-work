@@ -2,12 +2,20 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RotateCcw, Search, UserPlus, UsersRound } from '@lucide/vue'
-import { changeAdminRequesterStatus, createAdminRequester, getAdminRequesters } from '@/api/adminRequesters'
+import {
+  changeAdminRequesterStatus,
+  createAdminRequester,
+  getAdminRequesters,
+} from '@/api/adminRequesters'
 import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '@/api/http'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
 import RequesterCreateDialog from '@/components/admin/RequesterCreateDialog.vue'
-import type { AdminRequester, CreateAdminRequesterInput, RequesterAccountStatus } from '@/types/adminRequester'
+import type {
+  AdminRequester,
+  CreateAdminRequesterInput,
+  RequesterAccountStatus,
+} from '@/types/adminRequester'
 
 const loading = ref(false)
 const errorMessage = ref('')
@@ -25,7 +33,9 @@ const statusVisible = ref(false)
 const statusTarget = ref<AdminRequester | null>(null)
 const statusSubmitting = ref(false)
 const statusReasonError = ref('')
-const statusTitle = computed(() => statusTarget.value?.status === 'ACTIVE' ? '停用需求方账号' : '启用需求方账号')
+const statusTitle = computed(() =>
+  statusTarget.value?.status === 'ACTIVE' ? '停用需求方账号' : '启用需求方账号',
+)
 const statusDescription = computed(() => {
   const target = statusTarget.value
   if (!target) return ''
@@ -44,7 +54,12 @@ async function loadRequesters(): Promise<void> {
   loading.value = true
   errorMessage.value = ''
   try {
-    const result = await getAdminRequesters({ page: page.value, pageSize: pageSize.value, keyword: filters.keyword, status: filters.status })
+    const result = await getAdminRequesters({
+      page: page.value,
+      pageSize: pageSize.value,
+      keyword: filters.keyword,
+      status: filters.status,
+    })
     if (sequence !== loadSequence) return
     if (result.items.length === 0 && page.value > 1) {
       page.value = Math.max(1, Math.ceil(result.total / pageSize.value))
@@ -116,7 +131,9 @@ async function submitStatus(reason: string): Promise<void> {
   statusReasonError.value = ''
   try {
     await changeAdminRequesterStatus(target.id, {
-      expectedUpdatedAt: target.updatedAt, status: target.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE', reason,
+      expectedUpdatedAt: target.updatedAt,
+      status: target.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+      reason,
     })
     statusVisible.value = false
     statusTarget.value = null
@@ -137,62 +154,221 @@ async function submitStatus(reason: string): Promise<void> {
   }
 }
 onMounted(() => void loadRequesters())
-onUnmounted(() => { loadSequence++ })
+onUnmounted(() => {
+  loadSequence++
+})
 </script>
 
 <template>
   <section class="page">
-    <AppPageHeader title="需求方账号" description="核实申请人身份后开通账号，管理需求方的访问状态。" eyebrow="ADMIN" :icon="UsersRound" tone="blue">
-      <template #meta><span class="summary">{{ errorMessage ? '列表暂不可用' : `共 ${total} 个需求方账号` }}</span></template>
-      <template #actions><el-button type="primary" @click="openCreate"><UserPlus :size="16" aria-hidden="true" />开通账号</el-button></template>
+    <AppPageHeader
+      title="需求方账号"
+      description="核实申请人身份后开通账号，管理需求方的访问状态。"
+      eyebrow="ADMIN"
+      :icon="UsersRound"
+      tone="blue"
+    >
+      <template #meta
+        ><span class="summary">{{
+          errorMessage ? '列表暂不可用' : `共 ${total} 个需求方账号`
+        }}</span></template
+      >
+      <template #actions
+        ><el-button type="primary" @click="openCreate"
+          ><UserPlus :size="16" aria-hidden="true" />开通账号</el-button
+        ></template
+      >
     </AppPageHeader>
-    <el-alert type="info" :closable="false" title="受控开通不依赖自助注册开关；仅授予需求方权限。用户可在个人设置中维护资料和修改密码。" />
+    <el-alert
+      type="info"
+      :closable="false"
+      title="受控开通不依赖自助注册开关；仅授予需求方权限。用户可在个人设置中维护资料和修改密码。"
+    />
     <el-card class="filter-card" shadow="never">
       <el-form class="filters" label-position="top" @submit.prevent="search">
-        <el-form-item label="关键词"><el-input v-model="filters.keyword" maxlength="80" clearable placeholder="账号或显示名称" /></el-form-item>
-        <el-form-item label="状态"><el-select v-model="filters.status" clearable placeholder="全部状态"><el-option label="已启用" value="ACTIVE" /><el-option label="已停用" value="DISABLED" /></el-select></el-form-item>
-        <div class="filter-actions"><el-button type="primary" native-type="submit"><Search :size="16" aria-hidden="true" />查询</el-button><el-button @click="resetFilters"><RotateCcw :size="16" aria-hidden="true" />重置</el-button></div>
+        <el-form-item label="关键词"
+          ><el-input
+            v-model="filters.keyword"
+            maxlength="80"
+            clearable
+            placeholder="账号或显示名称"
+        /></el-form-item>
+        <el-form-item label="状态"
+          ><el-select v-model="filters.status" clearable placeholder="全部状态"
+            ><el-option label="已启用" value="ACTIVE" /><el-option
+              label="已停用"
+              value="DISABLED" /></el-select
+        ></el-form-item>
+        <div class="filter-actions">
+          <el-button type="primary" native-type="submit"
+            ><Search :size="16" aria-hidden="true" />查询</el-button
+          ><el-button @click="resetFilters"
+            ><RotateCcw :size="16" aria-hidden="true" />重置</el-button
+          >
+        </div>
       </el-form>
     </el-card>
-    <el-alert v-if="errorMessage" type="error" :closable="false" :title="errorMessage"><template #default><el-button link type="primary" @click="loadRequesters">重新加载</el-button></template></el-alert>
+    <el-alert v-if="errorMessage" type="error" :closable="false" :title="errorMessage"
+      ><template #default
+        ><el-button link type="primary" @click="loadRequesters">重新加载</el-button></template
+      ></el-alert
+    >
     <el-card v-else class="result-card">
-      <template #header><div class="result-heading"><span>需求方清单</span><small>第 {{ page }} 页</small></div></template>
-      <div role="region" aria-label="需求方账号列表，可横向滚动查看完整信息" tabindex="0" class="table-region" :aria-busy="loading">
-        <el-table v-loading="loading" :data="items" row-key="id" :empty-text="loading ? '正在加载账号…' : '暂无符合条件的需求方账号'">
+      <template #header
+        ><div class="result-heading">
+          <span>需求方清单</span><small>第 {{ page }} 页</small>
+        </div></template
+      >
+      <div
+        role="region"
+        aria-label="需求方账号列表，可横向滚动查看完整信息"
+        tabindex="0"
+        class="table-region"
+        :aria-busy="loading"
+      >
+        <el-table
+          v-loading="loading"
+          :data="items"
+          row-key="id"
+          :empty-text="loading ? '正在加载账号…' : '暂无符合条件的需求方账号'"
+        >
           <el-table-column prop="account" label="账号" min-width="150" />
           <el-table-column prop="displayName" label="显示名称" min-width="130" />
-          <el-table-column label="院系或部门" min-width="150"><template #default="{ row }">{{ row.department ?? '—' }}</template></el-table-column>
-          <el-table-column label="联系方式" min-width="210"><template #default="{ row }"><div>{{ row.email ?? '—' }}</div><div class="secondary-text">{{ row.phone ?? '—' }}</div></template></el-table-column>
-          <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'">{{ row.status === 'ACTIVE' ? '已启用' : '已停用' }}</el-tag></template></el-table-column>
-          <el-table-column label="开通时间" width="180"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="100" fixed="right"><template #default="{ row }"><el-button link :type="row.status === 'ACTIVE' ? 'danger' : 'primary'" :disabled="loading || statusSubmitting" :aria-label="`${row.status === 'ACTIVE' ? '停用' : '启用'}${row.displayName}的账号`" @click="openStatus(row)">{{ row.status === 'ACTIVE' ? '停用' : '启用' }}</el-button></template></el-table-column>
+          <el-table-column label="院系或部门" min-width="150"
+            ><template #default="{ row }">{{ row.department ?? '—' }}</template></el-table-column
+          >
+          <el-table-column label="联系方式" min-width="210"
+            ><template #default="{ row }"
+              ><div>{{ row.email ?? '—' }}</div>
+              <div class="secondary-text">{{ row.phone ?? '—' }}</div></template
+            ></el-table-column
+          >
+          <el-table-column label="状态" width="100"
+            ><template #default="{ row }"
+              ><el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'">{{
+                row.status === 'ACTIVE' ? '已启用' : '已停用'
+              }}</el-tag></template
+            ></el-table-column
+          >
+          <el-table-column label="开通时间" width="180"
+            ><template #default="{ row }">{{
+              formatDate(row.createdAt)
+            }}</template></el-table-column
+          >
+          <el-table-column label="操作" width="100" fixed="right"
+            ><template #default="{ row }"
+              ><el-button
+                link
+                :type="row.status === 'ACTIVE' ? 'danger' : 'primary'"
+                :disabled="loading || statusSubmitting"
+                :aria-label="`${row.status === 'ACTIVE' ? '停用' : '启用'}${row.displayName}的账号`"
+                @click="openStatus(row)"
+                >{{ row.status === 'ACTIVE' ? '停用' : '启用' }}</el-button
+              ></template
+            ></el-table-column
+          >
         </el-table>
       </div>
-      <el-pagination :current-page="page" :page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next" class="pagination" @current-change="changePage" @size-change="changePageSize" />
+      <el-pagination
+        :current-page="page"
+        :page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        class="pagination"
+        @current-change="changePage"
+        @size-change="changePageSize"
+      />
     </el-card>
-    <RequesterCreateDialog v-model="createVisible" :submitting="creating" :server-errors="createFieldErrors" :error-message="createError" @submit="submitCreate" />
-    <AdminReasonDialog v-model="statusVisible" :title="statusTitle" :description="statusDescription" :confirm-text="statusTarget?.status === 'ACTIVE' ? '确认停用' : '确认启用'" :danger="statusTarget?.status === 'ACTIVE'" :submitting="statusSubmitting" :server-error="statusReasonError" @confirm="submitStatus" />
+    <RequesterCreateDialog
+      v-model="createVisible"
+      :submitting="creating"
+      :server-errors="createFieldErrors"
+      :error-message="createError"
+      @submit="submitCreate"
+    />
+    <AdminReasonDialog
+      v-model="statusVisible"
+      :title="statusTitle"
+      :description="statusDescription"
+      :confirm-text="statusTarget?.status === 'ACTIVE' ? '确认停用' : '确认启用'"
+      :danger="statusTarget?.status === 'ACTIVE'"
+      :submitting="statusSubmitting"
+      :server-error="statusReasonError"
+      @confirm="submitStatus"
+    />
   </section>
 </template>
 
 <style scoped>
-.summary, .secondary-text, .result-heading small { color: var(--color-text-tertiary); }
-.summary, .result-heading small { font-size: 12px; }
-.filter-card { border-left: 3px solid var(--color-primary); }
-.filters { display: grid; grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) auto; gap: 12px; align-items: end; }
-.filters :deep(.el-form-item) { margin-bottom: 0; }
-.filters :deep(.el-select) { width: 100%; }
-.filter-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.filter-actions :deep(.el-button) { margin: 0; }
-.filter-actions :deep(.el-button span) { display: flex; align-items: center; gap: 7px; }
-.result-heading { display: flex; justify-content: space-between; gap: 16px; }
-.result-heading > span { color: var(--color-text-primary); font-weight: 650; }
-.result-card :deep(.el-card__body) { padding: 0 0 16px; }
-.table-region { overflow-x: auto; }
-.table-region:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.pagination { justify-content: flex-end; margin-top: 16px; padding: 0 16px; overflow-x: auto; }
+.summary,
+.secondary-text,
+.result-heading small {
+  color: var(--color-text-tertiary);
+}
+.summary,
+.result-heading small {
+  font-size: 12px;
+}
+.filter-card {
+  border-left: 3px solid var(--color-primary);
+}
+.filters {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.filters :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+.filters :deep(.el-select) {
+  width: 100%;
+}
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filter-actions :deep(.el-button) {
+  margin: 0;
+}
+.filter-actions :deep(.el-button span) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.result-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.result-heading > span {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+.result-card :deep(.el-card__body) {
+  padding: 0 0 16px;
+}
+.table-region {
+  overflow-x: auto;
+}
+.table-region:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding: 0 16px;
+  overflow-x: auto;
+}
 @media (max-width: 800px) {
-  .filters { grid-template-columns: 1fr; }
-  .pagination { justify-content: flex-start; }
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .pagination {
+    justify-content: flex-start;
+  }
 }
 </style>

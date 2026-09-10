@@ -16,7 +16,9 @@ export async function getAdminRequesters(
   return response.data.data
 }
 
-export async function createAdminRequester(input: CreateAdminRequesterInput): Promise<AdminRequester> {
+export async function createAdminRequester(
+  input: CreateAdminRequesterInput,
+): Promise<AdminRequester> {
   // Explicit allow-list: never send a caller-provided role or skill assignment.
   const payload = {
     account: input.account.trim(),
