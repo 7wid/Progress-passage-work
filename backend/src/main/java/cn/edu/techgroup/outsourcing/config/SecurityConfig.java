@@ -59,11 +59,14 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
-                                "/api/v1/auth/csrf")
+                                "/api/v1/auth/csrf",
+                                "/api/v1/auth/password-recovery")
                         .permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,
-                                "/api/v1/auth/login")
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/password-recovery/requests",
+                                "/api/v1/auth/password-recovery/reset")
                         .permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,

@@ -13,6 +13,7 @@ const actionOptions = [
   ['AUTH_LOGOUT', '退出登录'],
   ['PROFILE_UPDATED', '更新个人资料'],
   ['PASSWORD_CHANGED', '修改密码'],
+  ['PASSWORD_RESET', '邮箱验证重置密码'],
   ['USER_REGISTERED', '申请人注册'],
   ['REQUEST_DRAFT_SAVED', '保存需求草稿'],
   ['REQUEST_CONTENT_UPDATED', '更新需求内容'],

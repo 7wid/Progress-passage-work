@@ -22,6 +22,7 @@ public class UserEntity {
     private UserStatus status;
     private Integer failedLoginCount;
     private Instant lockedUntil;
+    private Instant passwordResetAt;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -47,6 +48,8 @@ public class UserEntity {
     public void setFailedLoginCount(Integer failedLoginCount) { this.failedLoginCount = failedLoginCount; }
     public Instant getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(Instant lockedUntil) { this.lockedUntil = lockedUntil; }
+    public Instant getPasswordResetAt() { return passwordResetAt; }
+    public void setPasswordResetAt(Instant passwordResetAt) { this.passwordResetAt = passwordResetAt; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

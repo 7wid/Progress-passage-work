@@ -1,0 +1,53 @@
+.recovery {
+  min-width: 0;
+}
+.recovery__notice {
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.recovery__notice p {
+  margin: 0 0 10px;
+}
+.recovery__notice--error {
+  color: var(--color-danger);
+}
+.recovery a {
+  color: var(--color-primary-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.recovery :focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.recovery .el-input__wrapper {
+  min-height: 46px;
+}
+.recovery .el-form-item {
+  margin-bottom: 24px;
+}
+.recovery__help {
+  margin: -8px 0 24px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.recovery__submit {
+  width: 100%;
+  min-height: 46px;
+  white-space: normal;
+}
+.recovery__back {
+  display: block;
+  width: fit-content;
+  margin: 20px auto 0;
+  padding: 10px 12px;
+  font-size: 14px;
+}
