@@ -1,9 +1,11 @@
 # CD 邮件告警与本地保留策略
 
+> 更新：2026-09-12。配合[服务器拉取端](CD-pull-agent.md)使用；此处 SMTP credential 与应用邮箱找回的 SMTP 环境变量分别配置、分别验收。
+
 本文说明 `tech-request-cd` 自动轮询启用前必须完成的邮件告警和本地容量保护。
 代码合并不等于服务器已经安装；所有生产操作仍须经过 PR、CI、维护窗口和管理员审批。
 
-## 已批准策略
+## 代码与模板中的默认策略
 
 - SMTP：QQ 邮箱 `smtp.qq.com:465`，TLS证书必须验证，使用独立授权码而不是登录密码。
 - 收件人：由 `/etc/tech-request-cd/alert-recipients` 配置，不提交仓库。
@@ -28,7 +30,7 @@ Ted_Kasane所有、600权限，且内容严格为 `enabled` 加一个换行。�
 
 从同一个已通过 PR/CI 的提交取下列文件，生成安装清单并核对 SHA256：
 
-~~~text
+```text
 deploy/server/notify-failure.py
 deploy/server/retention.py
 deploy/server/systemd/tech-request-cd.service
@@ -37,7 +39,7 @@ deploy/server/systemd/tech-request-cd-alert-test.service
 deploy/server/systemd/tech-request-retention.service
 deploy/server/systemd/tech-request-retention.timer
 deploy/server/systemd/journald/60-tech-request-retention.conf
-~~~
+```
 
 脚本安装到 `/home/Ted_Kasane/tech-request-prod-deploy/`，所有者
 Ted_Kasane:Ted_Kasane、权限750。unit 安装到 `/etc/systemd/system/`，
@@ -49,7 +51,7 @@ Ted_Kasane:Ted_Kasane、权限750。unit 安装到 `/etc/systemd/system/`，
 
 在生产服务器 `wid7@debian` 上进入 `/tmp` 后执行。输入过程不会回显授权码：
 
-~~~bash
+```bash
 cd /tmp
 umask 077
 read -r -p 'SMTP发件邮箱: ' cd_smtp_username
@@ -82,7 +84,7 @@ sudo stat -c '权限=%a 所有者=%U:%G 路径=%n' \
   /etc/tech-request-cd/smtp-username \
   /etc/tech-request-cd/smtp-password \
   /etc/tech-request-cd/alert-recipients
-~~~
+```
 
 不得打印或传输 credential 内容。
 
@@ -90,7 +92,7 @@ sudo stat -c '权限=%a 所有者=%U:%G 路径=%n' \
 
 保持 `tech-request-cd.timer` 和 `tech-request-retention.timer` 关闭，先验证单元：
 
-~~~bash
+```bash
 sudo systemd-analyze verify \
   /etc/systemd/system/tech-request-cd.service \
   /etc/systemd/system/tech-request-cd.timer \
@@ -99,67 +101,67 @@ sudo systemd-analyze verify \
   /etc/systemd/system/tech-request-retention.service \
   /etc/systemd/system/tech-request-retention.timer
 sudo systemctl daemon-reload
-~~~
+```
 
 发送测试邮件，并由收件人确认送达；测试失败时不得启用任何 timer：
 
-~~~bash
+```bash
 sudo systemctl reset-failed tech-request-cd-alert-test.service
 sudo systemctl start tech-request-cd-alert-test.service
 sudo systemctl status tech-request-cd-alert-test.service --no-pager
 sudo journalctl -u tech-request-cd-alert-test.service -n 30 --no-pager
-~~~
+```
 
-执行保留 dry-run。首次只有4份数据库备份时，数据库删除候选必须为0：
+执行保留 dry-run。若现有数据库备份不超过14份，数据库删除候选必须为0；份数以现场为准：
 
-~~~bash
+```bash
 cd /tmp
 sudo -H -u Ted_Kasane python3 -B \
   /home/Ted_Kasane/tech-request-prod-deploy/retention.py
-~~~
+```
 
 审核输出后创建独立开关；创建开关本身不执行删除：
 
-~~~bash
+```bash
 cd /tmp
 sudo -H -u Ted_Kasane sh -c \
   'umask 077; printf "enabled\n" > /home/Ted_Kasane/tech-request-prod-deploy/retention.enabled'
 sudo -H -u Ted_Kasane stat \
   -c '权限=%a 所有者=%U:%G 路径=%n' \
   /home/Ted_Kasane/tech-request-prod-deploy/retention.enabled
-~~~
+```
 
 ## 应用 journal 策略
 
 先安装 `/etc/systemd/journald.conf.d/60-tech-request-retention.conf` 并记录旧占用。
 首次 vacuum 会删除超出已批准策略的归档 journal，须写入维护记录：
 
-~~~bash
+```bash
 sudo journalctl --disk-usage
 sudo systemctl restart systemd-journald
 sudo journalctl --rotate --vacuum-time=30d --vacuum-size=512M
 sudo journalctl --disk-usage
-~~~
+```
 
 ## 最终启用顺序
 
 先单次执行保留服务，确认输出和邮件告警均正常：
 
-~~~bash
+```bash
 sudo systemctl start tech-request-retention.service
 sudo systemctl status tech-request-retention.service --no-pager
 sudo journalctl -u tech-request-retention.service -n 100 --no-pager
-~~~
+```
 
 只有测试邮件已送达、保留计划符合预期、数据库恢复演练和生产验收均通过后执行：
 
-~~~bash
+```bash
 sudo systemctl enable --now tech-request-retention.timer
 sudo systemctl enable --now tech-request-cd.timer
 systemctl is-enabled tech-request-retention.timer tech-request-cd.timer
 systemctl is-active tech-request-retention.timer tech-request-cd.timer
 systemctl list-timers tech-request-retention.timer tech-request-cd.timer --no-pager
-~~~
+```
 
 CD timer 启用后，合并到 main 且发布记录成功即进入生产自动部署链路；
 未完成、未验收或仅供测试的代码不得合入 main。
@@ -168,13 +170,13 @@ CD timer 启用后，合并到 main 且发布记录成功即进入生产自动�
 
 邮件告警到达后先停后续调度并保留现场：
 
-~~~bash
+```bash
 sudo systemctl disable --now tech-request-cd.timer
 sudo systemctl status tech-request-cd.service --no-pager
 sudo journalctl -u tech-request-cd.service -n 200 --no-pager
 sudo -H -u Ted_Kasane python3 -B \
   /home/Ted_Kasane/tech-request-prod-deploy/pull-agent.py --status
-~~~
+```
 
 不要删除状态/锁文件，不执行 `docker compose down -v` 或全局 prune，
 也不要在未检查数据库兼容性和发布后业务写入前恢复旧数据库。

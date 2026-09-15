@@ -1,32 +1,34 @@
-# GHCR 拉取式 CD：第二阶段（服务器执行端）
+# GHCR 拉取式 CD：服务器执行端
+
+> 更新：2026-09-12。前置目录与部署方式见[服务器准备指南](持续部署服务器准备指南.md)。
 
 ## 当前交付边界
 
-本分支提供拉取程序、摘要部署入口、测试和 systemd 模板。
+仓库提供拉取程序、摘要部署入口、测试和 systemd 模板。
 **代码在仓库里不等于服务器已安装，更不等于自动部署已启用。**
 默认命令和默认 service 都只执行 dry-run；本说明中的生产操作须在 PR/CI 通过、
 管理员确认安装路径和维护窗口后，逐步执行。不要把整篇文档当成一个脚本运行。
 
-已完成的现场前置检查：部署用户可从 GHCR 读取发布记录，以及记录指定的两个应用清单。
-这不替代镜像层拉取、平台检查、数据库备份、健康检查、外网业务验收。
+现场前置检查：部署用户须能从 GHCR 读取发布记录，以及记录指定的两个应用清单。
+检查通过也不替代镜像层拉取、平台检查、数据库备份、健康检查和外网业务验收。
 
 ## 文件与权限
 
-| 文件 | 安装位置 / 权限 |
-| --- | --- |
-| deploy.sh、pull-agent.py、notify-failure.py、retention.py | /home/Ted_Kasane/tech-request-prod-deploy/；Ted_Kasane 所有，750 |
-| 原 docker-compose.yml | 保持原路径和640权限；本分支没有修改 Compose |
-| 原 .env.prod、release.env | 保持原路径和600权限；不上传、不打印 .env.prod |
-| pull-agent-state.json | 程序首次初始化生成，Ted_Kasane所有，600；不可删除来绕过保护 |
-| pull-agent.lock、deploy.lock | Ted_Kasane所有，600；不删除正在使用的锁文件 |
-| pull-agent.enabled | 真实部署的独立开关，600；内容必须严格是 enabled 加一个 LF 换行 |
-| retention.enabled、alert-state-*.json | Ted_Kasane所有，600；前者是清理独立开关，后者用于相同故障一小时限流 |
-| tech-request-cd.service、tech-request-cd.timer | /etc/systemd/system/；root所有，644；管理员安装 |
-| 告警与保留 service/timer | /etc/systemd/system/；root所有，644；管理员安装 |
-| SMTP credential | /etc/tech-request-cd/；root所有，600；只通过 systemd credential 提供给告警服务 |
-| 60-tech-request-retention.conf | /etc/systemd/journald.conf.d/；root所有，644；影响整机日志，须经主机管理员批准 |
-| history/pull-deploy-*.log、pull-state-before-resume-*.json | 部署目录内审计文件，600 |
-| MySQL、上传、业务日志、数据库备份 | 继续使用 /data/volumes/tech-request-prod 下原有目录 |
+| 文件                                                       | 安装位置 / 权限                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| deploy.sh、pull-agent.py、notify-failure.py、retention.py  | /home/Ted_Kasane/tech-request-prod-deploy/；Ted_Kasane 所有，750               |
+| docker-compose.yml                                         | 部署目录内，640；与批准版本逐项比较，保留实际环境与数据挂载                    |
+| 原 .env.prod、release.env                                  | 保持原路径和600权限；不上传、不打印 .env.prod                                  |
+| pull-agent-state.json                                      | 程序首次初始化生成，Ted_Kasane所有，600；不可删除来绕过保护                    |
+| pull-agent.lock、deploy.lock                               | Ted_Kasane所有，600；不删除正在使用的锁文件                                    |
+| pull-agent.enabled                                         | 真实部署的独立开关，600；内容必须严格是 enabled 加一个 LF 换行                 |
+| retention.enabled、alert-state-*.json                      | Ted_Kasane所有，600；前者是清理独立开关，后者用于相同故障一小时限流            |
+| tech-request-cd.service、tech-request-cd.timer             | /etc/systemd/system/；root所有，644；管理员安装                                |
+| 告警与保留 service/timer                                   | /etc/systemd/system/；root所有，644；管理员安装                                |
+| SMTP credential                                            | /etc/tech-request-cd/；root所有，600；只通过 systemd credential 提供给告警服务 |
+| 60-tech-request-retention.conf                             | /etc/systemd/journald.conf.d/；root所有，644；影响整机日志，须经主机管理员批准 |
+| history/pull-deploy-_.log、pull-state-before-resume-_.json | 部署目录内审计文件，600                                                        |
+| MySQL、上传、业务日志、数据库备份                          | 继续使用 /data/volumes/tech-request-prod 下原有目录                            |
 
 运行要求：Linux、Python 3.9+、本机 Docker socket、linux/amd64、Docker Compose、
 timeout、flock、gzip、sha256sum。程序必须作为 Ted_Kasane 运行，不能以 root 运行。
@@ -53,9 +55,9 @@ Docker socket 本身具有很高权限；systemd 的沙箱选项不是针对恶�
 
 真实部署调用形状（由程序生成，不要从截图手抄摘要）：
 
-~~~text
+```text
 deploy.sh --digests COMMIT BACKEND_AT_DIGEST FRONTEND_AT_DIGEST CURRENT_RELEASE_ENV_SHA256
-~~~
+```
 
 旧的 deploy.sh COMMIT 接口仍可用。人工部署/回退前先停 timer；
 人工改版之后，拉取端会检测到基线变化并停止，需要维护人员审核后重新协调状态。
@@ -101,9 +103,9 @@ journald/60-tech-request-retention.conf 需另经主机管理员批准后安装�
 安装脚本后，仍不要创建 enabled 文件或启动 timer。
 作为 wid7 在服务器执行：
 
-~~~bash
+```bash
 sudo -H -u Ted_Kasane python3 -B /home/Ted_Kasane/tech-request-prod-deploy/pull-agent.py --dry-run
-~~~
+```
 
 检查输出的 sequence、commit、metadata 与最新批准记录对应，两个应用平台都通过。
 首次应报告 uninitialized。这是预检，不是部署完成。
@@ -127,11 +129,11 @@ sudo -H -u Ted_Kasane python3 -B /home/Ted_Kasane/tech-request-prod-deploy/pull-
 管理员以 Ted_Kasane 所有、600权限创建 pull-agent.enabled，内容严格为 enabled 加 LF换行。
 用 systemctl edit tech-request-cd.service 建立仅针对该服务的 drop-in：
 
-~~~ini
+```ini
 [Service]
 ExecStart=
 ExecStart=/usr/bin/python3 -B /home/Ted_Kasane/tech-request-prod-deploy/pull-agent.py --apply
-~~~
+```
 
 确认 timer 仍未启动，然后 daemon-reload，再单独启动一次 service。
 检查 journal、history/pull-deploy-*.log、备份及 --status：
@@ -155,11 +157,11 @@ last应记录本次序号，status应为ready，attempt应为空；三个容器h
 
 停止后续调度（不会主动停止已经执行中的 service）：
 
-~~~bash
+```bash
 sudo systemctl disable --now tech-request-cd.timer
 sudo systemctl status tech-request-cd.service --no-pager
 sudo journalctl -u tech-request-cd.service -n 100 --no-pager
-~~~
+```
 
 正常维护先停timer并等当前执行结束，再操作版本。不要随意中断备份/切换过程。
 如必须紧急停止正在运行的 service，systemd 会终止其进程组，但 Docker
@@ -172,7 +174,7 @@ sudo journalctl -u tech-request-cd.service -n 100 --no-pager
 若现场与旧基线不一致，--resume会拒绝；应按经批准的回退/状态协调步骤处理。
 停止定时器不等于停网站；删除 enabled 文件也不能撤销已经开始的部署。
 
-旧版本备份与控制脚本备份应按团队保留策略管理；本改动不自动删除镜像、数据或备份。
+拉取程序与 deploy.sh 不清理旧镜像或备份；独立 retention.py 按已确认策略管理数据库备份和审计文件，见告警与保留说明。控制脚本备份另行管理。
 存储不足时停止自动更新，请管理员精确评估清理对象，不做全局 prune。
 
 ## 官方接口依据
