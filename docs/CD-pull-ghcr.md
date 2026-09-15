@@ -1,13 +1,14 @@
-# GHCR 拉取式 CD：第一阶段（发布端）
+# GHCR 拉取式 CD：发布端
+
+> 更新：2026-09-12。部署总入口见[服务器准备指南](持续部署服务器准备指南.md)。
 
 ## 当前边界
 
-本改动只准备 GitHub Actions 发布版本记录，**不安装服务器定时任务，不连接 SSH，不更新任何生产容器**。
-仅合并发布端不能称为“合并即自动上线”。第二阶段代码和分步验收说明见 [服务器执行端](CD-pull-agent.md)；
+发布工作流负责应用镜像和版本记录，**不安装服务器定时任务，不连接 SSH，不更新任何生产容器**。
+仅合并发布端不能称为“合并即自动上线”。拉取端代码和分步验收说明见 [服务器执行端](CD-pull-agent.md)；
 代码合并不会自动安装服务器脚本或启用定时任务。
 
-生产服务器已验证可以读取 GHCR 镜像清单，但连接 GitHub API 超时。
-因此采用“GitHub 发布记录 → 服务器主动读取 GHCR → 验证后部署”的方式。
+方案采用“GitHub 发布记录 → 服务器主动读取 GHCR → 验证后部署”的方式，避免服务器依赖 GitHub API 可达性。
 GitHub API 查询仅在 GitHub 托管 runner 上执行，不在生产服务器执行。
 
 ## 发布条件与数据格式
@@ -44,10 +45,10 @@ ci_run_id、publish_run_id、publish_run_attempt、created_at（UTC）、images�
 
 在仓库根目录执行：
 
-~~~text
+```text
 python -B -m unittest discover -s deploy/ci/tests -v
 git diff --check
-~~~
+```
 
 本地没有 Docker 时，Docker 集成用例默认跳过；这不代表已经完成真实镜像验收。
 CI 的 Configuration / validate 设置 TEST_RELEASE_DOCKER=1，
@@ -57,7 +58,7 @@ CI 的 Configuration / validate 设置 TEST_RELEASE_DOCKER=1，
 这是因为记录要求同一 run_attempt 的前后端 build 标签成对存在；
 只重跑部分矩阵任务可能缺少另一组件的对应标签，届时安全失败，不拼接不同次构建。
 
-## 第一阶段合并后的人工验收清单
+## 发布端验收清单
 
 1. 通过 PR 审核并合并，确认 main 的 CI 全部成功。
 2. 确认 Publish container images 的两项构建和 Publish production release record 都成功。
@@ -68,14 +69,14 @@ CI 的 Configuration / validate 设置 TEST_RELEASE_DOCKER=1，
 5. 服务器先只读检查能否获取该记录及其引用的两个应用 digest，核对实际平台。
    检查成功不等于部署完成，此时不启用轮询或更新容器。
 
-## 第二阶段必须补齐的工程约束
+## 与服务器执行端的约定
 
 - 部署用户 Ted_Kasane 执行；wid7 仅通过已有 sudo 权限安装和管理。
   不改跳板机权限，不开放新入站端口，不给予 runner 生产服务器任意命令权限。
 - 只部署固定仓库、完整摘要引用，校验记录结构、提交、平台及版本顺序；
   不能 source、eval 或执行从镜像获取的记录内容，也不下载执行部署脚本。
-- 扩展现有 deploy.sh 的接口，使其支持经验证的成对 digest 引用。
-  不能直接把本记录传给当前仅接受 SHA 的脚本并宣称已经按摘要部署。
+- deploy.sh 已实现 --digests 接口，拉取端传入经验证的成对 digest 和当前 release.env 校验值。
+  旧 SHA 接口仍存在，但自动部署不依赖可移动的应用标签。
 - 与手动部署共用锁；同一记录幂等；失败版本暂停重试并报警；
   防止旧记录重放导致自动回退，人工回退需显式审批。
 - 保留现有数据库备份、磁盘空间检查、健康检查、应用回退、审计日志。
