@@ -9,6 +9,7 @@ import {
 } from '@/api/adminRequesters'
 import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '@/api/http'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import TableDetailToggle from '@/components/common/TableDetailToggle.vue'
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
 import RequesterCreateDialog from '@/components/admin/RequesterCreateDialog.vue'
 import type {
@@ -18,6 +19,7 @@ import type {
 } from '@/types/adminRequester'
 
 const loading = ref(false)
+const expandedColumns = ref(false)
 const errorMessage = ref('')
 const items = ref<AdminRequester[]>([])
 const page = ref(1)
@@ -213,9 +215,10 @@ onUnmounted(() => {
         ><el-button link type="primary" @click="loadRequesters">重新加载</el-button></template
       ></el-alert
     >
-    <el-card v-else class="result-card">
+    <el-card v-else class="result-card admin-result-card">
       <template #header
         ><div class="result-heading">
+          <TableDetailToggle v-model="expandedColumns" label="联系与时间" />
           <span>需求方清单</span><small>第 {{ page }} 页</small>
         </div></template
       >
@@ -237,7 +240,7 @@ onUnmounted(() => {
           <el-table-column label="院系或部门" min-width="150"
             ><template #default="{ row }">{{ row.department ?? '—' }}</template></el-table-column
           >
-          <el-table-column label="联系方式" min-width="210"
+          <el-table-column v-if="expandedColumns" label="联系方式" min-width="210"
             ><template #default="{ row }"
               ><div>{{ row.email ?? '—' }}</div>
               <div class="secondary-text">{{ row.phone ?? '—' }}</div></template
@@ -250,7 +253,7 @@ onUnmounted(() => {
               }}</el-tag></template
             ></el-table-column
           >
-          <el-table-column label="开通时间" width="180"
+          <el-table-column v-if="expandedColumns" label="开通时间" width="180"
             ><template #default="{ row }">{{
               formatDate(row.createdAt)
             }}</template></el-table-column

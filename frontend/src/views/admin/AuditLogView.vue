@@ -4,9 +4,11 @@ import { Eye, RotateCcw, Search, ShieldCheck } from '@lucide/vue'
 import { getAdminAuditLogs } from '@/api/auditLogs'
 import { getApiErrorMessage } from '@/api/http'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import { businessDateRange } from '@/utils/businessDateRange'
+import TableDetailToggle from '@/components/common/TableDetailToggle.vue'
+import DateRangePresets from '@/components/common/DateRangePresets.vue'
 import type { AuditJson, AuditLogRecord } from '@/types/audit'
 
-const BUSINESS_TIME_ZONE = 'Asia/Shanghai'
 const actionOptions = [
   ['AUTH_LOGIN', '登录成功'],
   ['AUTH_LOGIN_FAILED', '登录失败'],
@@ -45,24 +47,8 @@ const targetLabels: Record<string, string> = {
   AUTHENTICATION: '认证',
 }
 
-function businessDateParts(): { year: string; month: string; day: string } {
-  const parts = new Intl.DateTimeFormat('en', {
-    timeZone: BUSINESS_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? ''
-  return { year: value('year'), month: value('month'), day: value('day') }
-}
-
-function currentMonthRange(): [string, string] {
-  const { year, month, day } = businessDateParts()
-  return [`${year}-${month}-01`, `${year}-${month}-${day}`]
-}
-
 const loading = ref(false)
+const expandedColumns = ref(false)
 const errorMessage = ref('')
 const items = shallowRef<AuditLogRecord[]>([])
 const page = ref(1)
@@ -71,7 +57,7 @@ const total = ref(0)
 const selected = shallowRef<AuditLogRecord | null>(null)
 const detailVisible = ref(false)
 const filters = reactive({
-  dateRange: currentMonthRange(),
+  dateRange: businessDateRange('month'),
   actorId: '',
   action: '',
   targetType: '',
@@ -140,7 +126,7 @@ function search(): void {
 }
 
 function resetFilters(): void {
-  filters.dateRange = currentMonthRange()
+  filters.dateRange = businessDateRange('month')
   filters.actorId = ''
   filters.action = ''
   filters.targetType = ''
@@ -182,6 +168,7 @@ onMounted(() => void loadData())
 
     <el-card class="filter-card" shadow="never">
       <el-form label-position="top" @submit.prevent="search">
+        <DateRangePresets v-model="filters.dateRange" @change="search" />
         <div class="filters">
           <el-form-item label="操作日期">
             <el-date-picker
@@ -239,9 +226,10 @@ onMounted(() => void loadData())
       </template>
     </el-alert>
 
-    <el-card class="result-card">
+    <el-card class="result-card admin-result-card">
       <template #header>
         <div class="result-heading">
+          <TableDetailToggle v-model="expandedColumns" label="追踪信息" />
           <span><ShieldCheck :size="17" aria-hidden="true" />操作记录</span>
           <small>共 {{ total }} 条</small>
         </div>
@@ -263,8 +251,14 @@ onMounted(() => void loadData())
             {{ targetLabel(row.targetType) }}{{ row.targetId ? ` #${row.targetId}` : '' }}
           </template>
         </el-table-column>
-        <el-table-column prop="requestId" label="请求 ID" min-width="190" show-overflow-tooltip />
-        <el-table-column prop="ipAddress" label="来源 IP" width="150" />
+        <el-table-column
+          v-if="expandedColumns"
+          prop="requestId"
+          label="请求 ID"
+          min-width="190"
+          show-overflow-tooltip
+        />
+        <el-table-column v-if="expandedColumns" prop="ipAddress" label="来源 IP" width="150" />
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">

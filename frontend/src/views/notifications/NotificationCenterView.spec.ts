@@ -51,6 +51,7 @@ const ButtonStub = defineComponent({
 })
 
 const stubs = {
+  'transition-group': { template: '<ul><slot /></ul>' },
   AppPageHeader: false,
   'el-button': ButtonStub,
   'el-card': { template: '<section><slot /></section>' },

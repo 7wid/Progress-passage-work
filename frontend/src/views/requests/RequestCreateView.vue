@@ -20,6 +20,7 @@ import {
   updateRequest,
 } from '@/api/requests'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import SectionNavigator from '@/components/common/SectionNavigator.vue'
 import RequestSupplementGuide from '@/components/requests/RequestSupplementGuide.vue'
 import type { CategoryOption, CreateRequestInput, RequestStatus } from '@/types/request'
 
@@ -72,6 +73,29 @@ const form = reactive<CreateRequestInput>({
   contactInfo: '',
   informationConfirmed: false,
 })
+
+const formSections = computed(() => [
+  {
+    id: 'request-basics',
+    label: '基础信息',
+    complete: Boolean(form.title.trim() && form.categoryId && form.expectedDeadline),
+  },
+  {
+    id: 'request-description',
+    label: '需求说明',
+    complete: Boolean(
+      form.background.trim() && form.description.trim() && form.expectedResult.trim(),
+    ),
+  },
+  {
+    id: 'request-contact',
+    label: '约束与联系',
+    complete: Boolean(form.contactInfo.trim() && form.informationConfirmed),
+  },
+])
+const filledSections = computed(
+  () => formSections.value.filter((section) => section.complete).length,
+)
 
 const rules: FormRules = {
   categoryId: [{ required: true, message: '请选择需求分类', trigger: 'change' }],
@@ -345,6 +369,13 @@ onBeforeUnmount(() => {
       :icon="FilePenLine"
     />
 
+    <SectionNavigator label="填写导航" :items="formSections">
+      <span class="form-completion">已填写 {{ filledSections }}/3 组</span>
+    </SectionNavigator>
+    <p class="form-guide">
+      先说清你要解决的问题。可以按章节继续填写，暂时没有整理好的内容先保存草稿。
+    </p>
+
     <RequestSupplementGuide
       v-if="requestStatus === 'NEED_MORE_INFO' && editingId"
       :request-id="editingId"
@@ -374,7 +405,7 @@ onBeforeUnmount(() => {
         label-position="top"
         @submit.prevent="handleSubmit"
       >
-        <div class="form-section-heading">
+        <div id="request-basics" tabindex="-1" class="form-section-heading workflow-anchor">
           <span>01</span>
           <div>
             <strong>基础信息</strong>
@@ -425,7 +456,7 @@ onBeforeUnmount(() => {
           </el-form-item>
         </div>
 
-        <div class="form-section-heading">
+        <div id="request-description" tabindex="-1" class="form-section-heading workflow-anchor">
           <span>02</span>
           <div>
             <strong>需求说明</strong>
@@ -462,7 +493,7 @@ onBeforeUnmount(() => {
           />
         </el-form-item>
 
-        <div class="form-section-heading">
+        <div id="request-contact" tabindex="-1" class="form-section-heading workflow-anchor">
           <span>03</span>
           <div>
             <strong>约束与联系</strong>
@@ -563,8 +594,31 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.form-completion {
+  margin-left: auto;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--color-note-text);
+  background: var(--color-note);
+  font-size: 12px;
+}
+.form-guide {
+  max-width: 75em;
+  margin: -6px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 16px 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
 .request-form-card {
   width: min(1060px, 100%);
+  overflow: visible;
 }
 
 .request-form-card :deep(.el-card__body) {
@@ -695,7 +749,10 @@ onBeforeUnmount(() => {
 
   .form-actions {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .form-actions > :first-child {
+    grid-column: 1 / -1;
   }
 }
 </style>

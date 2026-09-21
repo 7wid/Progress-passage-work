@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, onMounted, ref } from 'vue'
+import { computed, markRaw, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Component } from 'vue'
 import {
   Activity,
@@ -37,6 +37,7 @@ const recent = ref<RequestSummary[]>([])
 const counts = ref<Partial<Record<RequestStatus, number>>>({})
 const requesterActionItems = ref<RequestSummary[]>([])
 const requesterActionTotal = ref(0)
+let loadSequence = 0
 
 const requesterActionStatuses: RequestStatus[] = ['PENDING_ACCEPTANCE', 'NEED_MORE_INFO', 'DRAFT']
 
@@ -139,6 +140,7 @@ const activeTotal = computed(() => {
 })
 
 async function loadDashboard() {
+  const sequence = ++loadSequence
   loading.value = true
   errorMessage.value = ''
   try {
@@ -163,6 +165,7 @@ async function loadDashboard() {
     const resultsByStatus = new Map(
       queriedStatuses.map((status, index) => [status, statusResults[index]]),
     )
+    if (sequence !== loadSequence) return
     total.value = latest.total
     recent.value = latest.items
     counts.value = Object.fromEntries(
@@ -180,6 +183,7 @@ async function loadDashboard() {
         )
       : 0
   } catch {
+    if (sequence !== loadSequence) return
     total.value = 0
     recent.value = []
     counts.value = {}
@@ -187,7 +191,7 @@ async function loadDashboard() {
     requesterActionTotal.value = 0
     errorMessage.value = '首页数据加载失败，请稍后重试'
   } finally {
-    loading.value = false
+    if (sequence === loadSequence) loading.value = false
   }
 }
 
@@ -200,6 +204,9 @@ function openRequest(id: string) {
 }
 
 onMounted(loadDashboard)
+onBeforeUnmount(() => {
+  loadSequence++
+})
 </script>
 
 <template>
@@ -216,11 +223,11 @@ onMounted(loadDashboard)
       <dl class="dashboard-intro__signals" aria-label="工作摘要">
         <div>
           <dt>{{ activeLabel }}</dt>
-          <dd>{{ activeTotal }}</dd>
+          <dd>{{ loading || errorMessage ? '—' : activeTotal }}</dd>
         </div>
         <div>
           <dt>全部需求</dt>
-          <dd>{{ total }}</dd>
+          <dd>{{ loading || errorMessage ? '—' : total }}</dd>
         </div>
       </dl>
       <div class="dashboard-intro__actions">
@@ -232,6 +239,9 @@ onMounted(loadDashboard)
           <Plus :size="17" aria-hidden="true" />
           发起新需求
         </el-button>
+        <el-button v-else type="primary" @click="router.push('/workspace')"
+          >进入工作台<ArrowRight :size="17" aria-hidden="true"
+        /></el-button>
       </div>
     </header>
 
@@ -276,8 +286,11 @@ onMounted(loadDashboard)
           <span>{{ card.label }}</span>
           <small>{{ card.hint }}</small>
         </span>
-        <strong>{{ counts[card.status] ?? 0 }}</strong>
+        <strong>{{ loading || errorMessage ? '—' : (counts[card.status] ?? 0) }}</strong>
         <ChevronRight :size="17" class="metric__arrow" aria-hidden="true" />
+        <span class="metric__share" aria-hidden="true"
+          ><i :style="{ transform: `scaleX(${total ? (counts[card.status] ?? 0) / total : 0})` }"
+        /></span>
       </button>
     </div>
 
@@ -351,8 +364,10 @@ onMounted(loadDashboard)
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 36px;
-  padding: 4px 0 28px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 30px;
+  color: var(--color-on-ink);
+  background: var(--color-ink);
+  border-radius: var(--radius-lg);
   animation: intro-enter 380ms var(--ease-standard) both;
 }
 
@@ -365,14 +380,14 @@ onMounted(loadDashboard)
   align-items: center;
   gap: 6px;
   margin-bottom: 9px;
-  color: var(--color-primary-strong);
+  color: var(--color-on-ink-muted);
   font-size: 13px;
   font-weight: 600;
 }
 
 .dashboard-intro h1 {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--color-on-ink);
   font-size: 31px;
   font-weight: 680;
   line-height: 1.2;
@@ -380,7 +395,7 @@ onMounted(loadDashboard)
 
 .dashboard-intro p {
   margin: 9px 0 0;
-  color: var(--color-text-secondary);
+  color: var(--color-on-ink-muted);
   font-size: 14px;
 }
 
@@ -400,14 +415,14 @@ onMounted(loadDashboard)
 }
 
 .dashboard-intro__signals dt {
-  color: var(--color-text-tertiary);
+  color: var(--color-on-ink-muted);
   font-size: 11px;
   font-weight: 600;
 }
 
 .dashboard-intro__signals dd {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--color-on-ink);
   font-size: 25px;
   font-weight: 680;
   font-variant-numeric: tabular-nums;
@@ -479,13 +494,14 @@ onMounted(loadDashboard)
 }
 
 .metric {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: 102px;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
-  padding: 17px;
+  padding: 17px 17px 24px;
   text-align: left;
   color: var(--color-text-primary);
   background: var(--color-surface);
@@ -497,6 +513,29 @@ onMounted(loadDashboard)
     box-shadow var(--motion-fast) ease,
     background-color var(--motion-fast) ease;
   animation: metric-enter 360ms var(--ease-standard) both;
+}
+
+.metric__share {
+  position: absolute;
+  left: 17px;
+  right: 17px;
+  bottom: 10px;
+  height: 3px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--metric-background);
+}
+.metric__share i {
+  display: block;
+  height: 100%;
+  background: var(--metric-color);
+  transform-origin: left;
+  transition: transform 260ms var(--ease-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  .metric__share i {
+    transition: none;
+  }
 }
 
 .metric:nth-child(2) {

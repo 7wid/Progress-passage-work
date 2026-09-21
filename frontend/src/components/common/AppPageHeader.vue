@@ -24,7 +24,6 @@ withDefaults(
         <component :is="icon" :size="22" :stroke-width="1.9" />
       </span>
       <div class="app-page-header__copy">
-        <span v-if="eyebrow" class="app-page-header__eyebrow">{{ eyebrow }}</span>
         <h1>{{ title }}</h1>
         <p v-if="description">{{ description }}</p>
         <div v-if="$slots.meta" class="app-page-header__meta">
@@ -49,7 +48,8 @@ withDefaults(
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  padding-bottom: 2px;
+  padding: 8px 0 24px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .app-page-header--green {
@@ -92,45 +92,24 @@ withDefaults(
 .app-page-header__icon {
   position: relative;
   display: inline-grid;
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
   place-items: center;
   color: var(--header-color);
   background: var(--header-soft);
-  border: 1px solid var(--header-border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 5px 14px rgb(15 23 42 / 5%);
-}
-
-.app-page-header__icon::after {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 4px;
-  height: 4px;
-  background: var(--header-color);
-  border-radius: 1px;
-  content: '';
+  border: 0;
+  border-radius: 14px;
 }
 
 .app-page-header__copy {
   min-width: 0;
 }
 
-.app-page-header__eyebrow {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--header-color);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
 .app-page-header h1 {
   margin: 0;
   color: var(--color-text-primary);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 680;
   line-height: 1.25;
   overflow-wrap: anywhere;

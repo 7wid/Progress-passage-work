@@ -21,13 +21,14 @@ import { getAdminStatistics } from '@/api/statistics'
 import MemberWorkloadTable from '@/components/statistics/MemberWorkloadTable.vue'
 import StatisticsTrendChart from '@/components/statistics/StatisticsTrendChart.vue'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import { businessDateRange } from '@/utils/businessDateRange'
+import DateRangePresets from '@/components/common/DateRangePresets.vue'
 import AppSectionHeader from '@/components/common/AppSectionHeader.vue'
 import type { AdminCategory } from '@/types/admin'
 import type { RequestStatus } from '@/types/request'
 import type { AdminStatisticsDashboard } from '@/types/statistics'
 import { downloadStatisticsCsv } from '@/utils/statisticsExport'
 
-const BUSINESS_TIME_ZONE = 'Asia/Shanghai'
 const statusLabels: Record<RequestStatus, string> = {
   DRAFT: '草稿',
   PENDING_REVIEW: '待评估',
@@ -40,30 +41,13 @@ const statusLabels: Record<RequestStatus, string> = {
   CANCELLED: '已取消',
 }
 
-function businessDateParts(): { year: string; month: string; day: string } {
-  const parts = new Intl.DateTimeFormat('en', {
-    timeZone: BUSINESS_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? ''
-  return { year: value('year'), month: value('month'), day: value('day') }
-}
-
-function currentMonthRange(): [string, string] {
-  const { year, month, day } = businessDateParts()
-  return [`${year}-${month}-01`, `${year}-${month}-${day}`]
-}
-
 const loading = ref(false)
 const categoryLoading = ref(false)
 const errorMessage = ref('')
 const categoryError = ref('')
 const dashboard = ref<AdminStatisticsDashboard | null>(null)
 const categories = ref<AdminCategory[]>([])
-const dateRange = ref<[string, string]>(currentMonthRange())
+const dateRange = ref<[string, string]>(businessDateRange('month'))
 const categoryId = ref('')
 let loadSequence = 0
 
@@ -142,7 +126,7 @@ async function loadDashboard(): Promise<void> {
 }
 
 function resetFilters(): void {
-  dateRange.value = currentMonthRange()
+  dateRange.value = businessDateRange('month')
   categoryId.value = ''
   void loadDashboard()
 }
@@ -189,6 +173,7 @@ onMounted(() => {
     </AppPageHeader>
 
     <el-card>
+      <DateRangePresets v-model="dateRange" @change="loadDashboard" />
       <div class="filters">
         <el-date-picker
           v-model="dateRange"

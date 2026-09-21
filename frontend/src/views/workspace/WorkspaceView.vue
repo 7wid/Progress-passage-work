@@ -5,6 +5,8 @@ import { useRouter } from 'vue-router'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import CollectionViewToggle from '@/components/common/CollectionViewToggle.vue'
+import RequestCollectionCards from '@/components/requests/RequestCollectionCards.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { RequestListQuery, RequestSummary, RequestUrgency } from '@/types/request'
 
@@ -26,6 +28,7 @@ const items = ref<RequestSummary[]>([])
 const page = ref(1)
 const pageSize = 20
 const total = ref(0)
+const viewMode = ref<'table' | 'cards'>('table')
 let loadSequence = 0
 
 const queueLabels: Record<WorkspaceQueue, string> = {
@@ -35,6 +38,15 @@ const queueLabels: Record<WorkspaceQueue, string> = {
   PARTICIPANT: '我参与',
   PENDING_ACCEPTANCE: '待验收',
   OVERDUE: '已逾期',
+}
+
+const queueDescriptions: Record<WorkspaceQueue, string> = {
+  PENDING_REVIEW: '先阅读背景与期望成果，给出可行性结论；信息不足时列明需要补充的资料。',
+  PENDING_ASSIGNMENT: '明确主负责人和参与成员，让通过评估的需求进入执行。',
+  OWNER: '检查你负责的需求，更新进度、说明风险，并在准备就绪后提交交付。',
+  PARTICIPANT: '查看你参与的需求，结合负责人安排推进协作。',
+  PENDING_ACCEPTANCE: '交付已提交，关注申请人的验收意见和需要调整的内容。',
+  OVERDUE: '优先核对未完成事项和延期原因，再与申请人确认后续安排。',
 }
 
 const queueTones: Record<WorkspaceQueue, 'blue' | 'green' | 'orange' | 'purple' | 'red'> = {
@@ -155,22 +167,43 @@ onMounted(loadQueue)
       </template>
     </el-alert>
 
-    <el-card class="queue-card">
+    <div class="queue-brief" :aria-busy="loading">
+      <div>
+        <span>当前办理队列</span>
+        <h2>{{ queueLabels[activeQueue] }}</h2>
+        <p>{{ queueDescriptions[activeQueue] }}</p>
+      </div>
+      <strong aria-label="当前队列需求数"
+        >{{ loading || errorMessage ? '—' : total }}<small>条需求</small></strong
+      >
+    </div>
+
+    <el-card
+      class="queue-card collection-results"
+      :class="{ 'collection-results--cards': viewMode === 'cards' }"
+    >
       <template #header>
         <div class="queue-heading" :class="`queue-heading--${queueTones[activeQueue]}`">
           <div class="queue-heading__title">
             <span class="queue-heading__icon" aria-hidden="true"><ListChecks :size="18" /></span>
             <strong>{{ queueLabels[activeQueue] }}</strong>
           </div>
-          <span class="queue-heading__count">共 {{ total }} 条</span>
+          <CollectionViewToggle v-model="viewMode" />
         </div>
       </template>
+      <RequestCollectionCards
+        v-if="items.length"
+        v-loading="loading"
+        class="collection-cards"
+        :items="items"
+        @open="openDetail"
+      />
       <el-table
         v-loading="loading"
         :data="items"
         row-key="id"
         empty-text="当前队列暂无需求"
-        class="queue-table"
+        class="queue-table collection-table"
         @row-click="(row: RequestSummary) => openDetail(row.id)"
       >
         <el-table-column label="需求编号" width="180">
@@ -196,7 +229,7 @@ onMounted(loadQueue)
         <el-table-column label="发起时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="110" fixed="right">
+        <el-table-column label="操作" width="130" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="openDetail(row.id)">
               查看详情
@@ -205,6 +238,11 @@ onMounted(loadQueue)
           </template>
         </el-table-column>
       </el-table>
+
+      <div v-if="!loading && !errorMessage && !items.length" class="collection-empty">
+        <ListChecks :size="28" aria-hidden="true" /><strong>当前队列已清空</strong>
+        <p>可以切换其他队列，或稍后刷新查看新需求。</p>
+      </div>
 
       <el-pagination
         v-if="total > pageSize"
@@ -220,6 +258,50 @@ onMounted(loadQueue)
 </template>
 
 <style scoped>
+.queue-brief {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 26px 30px;
+  color: var(--color-on-ink);
+  background: var(--color-ink);
+  border-radius: var(--radius-lg);
+}
+.queue-brief h2 {
+  margin: 6px 0 8px;
+  font-size: 26px;
+}
+.queue-brief p {
+  max-width: 56em;
+  margin: 0;
+  color: var(--color-on-ink-muted);
+  font-size: 14px;
+}
+.queue-brief > div > span {
+  color: var(--color-on-ink-muted);
+  font-size: 12px;
+}
+.queue-brief > strong {
+  flex-shrink: 0;
+  font-size: 40px;
+  font-variant-numeric: tabular-nums;
+}
+.queue-brief small {
+  display: block;
+  color: var(--color-on-ink-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+@media (max-width: 600px) {
+  .queue-brief {
+    padding: 22px 18px;
+    gap: 16px;
+  }
+  .queue-brief h2 {
+    font-size: 22px;
+  }
+}
 .queue-tabs {
   padding: 0 4px;
 }
