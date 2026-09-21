@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cancelRequest,
   createDraft,
+  createRequest,
   getRequestDetail,
   getRequests,
   submitRequest,
@@ -92,21 +93,40 @@ describe('requests api', () => {
       data: { data: { id: '42', requestNo: null, status: 'DRAFT' } },
     } as never)
 
-    await createDraft(requestInput)
+    await createDraft(requestInput, 'a4711af2-088c-4a37-b4a3-eb119c014ce2')
 
-    expect(postMock).toHaveBeenCalledWith('/requests/drafts', {
-      categoryId: null,
-      title: '草稿标题',
-      background: null,
-      description: null,
-      expectedResult: null,
-      expectedDeadline: null,
-      urgency: 'NORMAL',
-      budgetAmount: null,
-      budgetDescription: null,
-      technicalConstraints: null,
-      contactInfo: null,
-    })
+    expect(postMock).toHaveBeenCalledWith(
+      '/requests/drafts',
+      {
+        categoryId: null,
+        title: '草稿标题',
+        background: null,
+        description: null,
+        expectedResult: null,
+        expectedDeadline: null,
+        urgency: 'NORMAL',
+        budgetAmount: null,
+        budgetDescription: null,
+        technicalConstraints: null,
+        contactInfo: null,
+      },
+      { headers: { 'Idempotency-Key': 'a4711af2-088c-4a37-b4a3-eb119c014ce2' } },
+    )
+  })
+
+  it('正式创建携带同一防重凭据重试，保留大整数分类 ID', async () => {
+    getMock.mockResolvedValue({ data: { data: 'csrf' } } as never)
+    postMock.mockResolvedValue({ data: { data: { id: '42' } } } as never)
+    const key = 'a4711af2-088c-4a37-b4a3-eb119c014ce2'
+    const input = { ...requestInput, categoryId: '9007199254740993', informationConfirmed: true }
+    await createRequest(input, key)
+    await createRequest(input, key)
+    expect(postMock).toHaveBeenCalledTimes(2)
+    expect(postMock).toHaveBeenLastCalledWith(
+      '/requests',
+      expect.objectContaining({ categoryId: '9007199254740993', informationConfirmed: true }),
+      { headers: { 'Idempotency-Key': key } },
+    )
   })
 
   it('编辑、提交和取消均传递服务端版本', async () => {

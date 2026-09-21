@@ -140,7 +140,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(
-                List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id"));
+                List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-Id", "Idempotency-Key"));
         configuration.setExposedHeaders(List.of("X-Request-Id"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source =
