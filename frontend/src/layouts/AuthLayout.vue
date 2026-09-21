@@ -1,7 +1,30 @@
 <script setup lang="ts">
-import { BadgeCheck, ClipboardList, MessageSquare } from '@lucide/vue'
+import { computed, ref } from 'vue'
+import { ArrowLeft, BadgeCheck, ClipboardList, MessageSquare } from '@lucide/vue'
 import ProductLogo from '@/components/common/ProductLogo.vue'
 import { PRODUCT_NAME, PRODUCT_NAME_EN } from '@/config/product'
+const selectedStep = ref(0)
+const flowSteps = [
+  {
+    title: '需求发起',
+    icon: ClipboardList,
+    heading: '先把问题说清楚',
+    description: '填写背景、期望成果和时间要求；还没整理好，可以先保存草稿。',
+  },
+  {
+    title: '协同处理',
+    icon: MessageSquare,
+    heading: '关注下一步需要什么',
+    description: '补充团队需要的资料，查看负责人和进度记录，让讨论跟随同一条需求。',
+  },
+  {
+    title: '成果验收',
+    icon: BadgeCheck,
+    heading: '用实际成果确认完成',
+    description: '查看交付内容，符合预期就确认验收；需要调整时，提交具体反馈。',
+  },
+]
+const selectedFlow = computed(() => flowSteps[selectedStep.value]!)
 
 withDefaults(
   defineProps<{
@@ -32,23 +55,24 @@ withDefaults(
         <h2>从需求提出到成果验收，每一步都有明确记录。</h2>
         <p>面向需求申请人与技术服务团队的协作工作台。</p>
         <ol class="auth-flow" aria-label="需求服务流程">
-          <li>
-            <span class="auth-flow__node"><ClipboardList :size="19" :stroke-width="1.8" /></span>
-            <span><small>01</small><strong>需求发起</strong></span>
-          </li>
-          <li>
-            <span class="auth-flow__node auth-flow__node--build">
-              <MessageSquare :size="19" :stroke-width="1.8" />
-            </span>
-            <span><small>02</small><strong>协同处理</strong></span>
-          </li>
-          <li>
-            <span class="auth-flow__node auth-flow__node--done">
-              <BadgeCheck :size="19" :stroke-width="1.8" />
-            </span>
-            <span><small>03</small><strong>成果验收</strong></span>
+          <li v-for="(step, index) in flowSteps" :key="step.title">
+            <button
+              type="button"
+              :aria-pressed="selectedStep === index"
+              @click="selectedStep = index"
+            >
+              <component :is="step.icon" :size="19" aria-hidden="true" />{{ step.title }}
+            </button>
           </li>
         </ol>
+        <div class="auth-flow-preview" aria-live="polite">
+          <Transition name="auth-step" mode="out-in"
+            ><div :key="selectedStep">
+              <strong>{{ selectedFlow.heading }}</strong>
+              <p>{{ selectedFlow.description }}</p>
+            </div></Transition
+          >
+        </div>
       </div>
 
       <div class="auth-brand-footer">
@@ -59,6 +83,9 @@ withDefaults(
 
     <section class="auth-layout__content">
       <div class="auth-form-shell" :class="{ 'auth-form-shell--wide': wide }">
+        <RouterLink class="auth-home-link" to="/"
+          ><ArrowLeft :size="16" aria-hidden="true" />返回宣传页</RouterLink
+        >
         <header>
           <span>{{ eyebrow }}</span>
           <h1>{{ title }}</h1>
@@ -87,7 +114,7 @@ withDefaults(
   padding: clamp(32px, 5vw, 64px);
   overflow: hidden;
   color: #f8fbff;
-  background: #163d68;
+  background: var(--color-ink);
 }
 
 .auth-layout__brand > * {
@@ -176,6 +203,80 @@ withDefaults(
   border-top: 1px solid rgb(255 255 255 / 18%);
 }
 
+.auth-flow button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #4e6b83;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-on-ink-muted);
+  font-size: 13px;
+  transition:
+    color 160ms,
+    background-color 160ms;
+}
+.auth-flow button[aria-pressed='true'] {
+  color: var(--color-note-text);
+  background: var(--color-note);
+  border-color: var(--color-note);
+}
+.auth-flow-preview {
+  min-height: 150px;
+  margin-top: 20px;
+  padding: 22px 0 0;
+}
+.auth-flow-preview strong {
+  color: var(--color-on-ink);
+  font-size: 20px;
+}
+.auth-flow-preview p {
+  margin-top: 10px;
+  font-size: 14px;
+}
+.auth-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-bottom: 28px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.auth-home-link:hover {
+  color: var(--color-primary);
+}
+.auth-step-enter-active,
+.auth-step-leave-active {
+  transition:
+    opacity 160ms,
+    transform 160ms;
+}
+.auth-step-enter-from {
+  opacity: 0;
+  transform: translateX(8px);
+}
+.auth-step-leave-to {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+@media (max-width: 900px) {
+  .auth-flow-preview {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-step-enter-active,
+  .auth-step-leave-active,
+  .auth-flow button {
+    transition: none;
+  }
+}
+
 .auth-flow li {
   display: flex;
   min-width: 0;
@@ -183,61 +284,10 @@ withDefaults(
   gap: 9px;
 }
 
-.auth-flow__node {
-  display: inline-grid;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  place-items: center;
-  color: #ffffff;
-  background: rgb(255 255 255 / 9%);
-  border: 1px solid rgb(255 255 255 / 22%);
-  border-radius: var(--radius-md);
-  animation: auth-node-enter 360ms var(--ease-standard) both;
-}
-
-.auth-flow__node--build {
-  color: #cffafe;
-  background: rgb(6 182 212 / 18%);
-  animation-delay: 80ms;
-}
-
-.auth-flow__node--done {
-  color: #ffedd5;
-  background: rgb(234 88 12 / 18%);
-  animation-delay: 160ms;
-}
-
-.auth-flow li > span:last-child {
-  display: grid;
-  min-width: 0;
-}
-
-.auth-flow small {
-  color: #8fc5eb;
-  font-size: 10px;
-  line-height: 1.3;
-}
-
-.auth-flow strong {
-  color: #f8fbff;
-  font-size: 13px;
-  font-weight: 620;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-
 @keyframes auth-copy-enter {
   from {
     opacity: 0;
     transform: translateY(10px);
-  }
-}
-
-@keyframes auth-node-enter {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
   }
 }
 

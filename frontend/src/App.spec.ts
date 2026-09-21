@@ -7,6 +7,7 @@ describe('App', () => {
     const wrapper = shallowMount(App, {
       global: {
         stubs: {
+          ElConfigProvider: { props: ['locale'], template: '<slot />' },
           RouterView: { template: '<main data-test="root-router-view" />' },
         },
       },

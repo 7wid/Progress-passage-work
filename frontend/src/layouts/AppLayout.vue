@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Component } from 'vue'
 import {
@@ -50,6 +50,12 @@ const notificationStore = useNotificationStore()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const commandPaletteOpen = ref(false)
+const sidebar = ref<HTMLElement>()
+const mobileMenuButton = ref<HTMLButtonElement>()
+const mainContent = ref<HTMLElement>()
+const isMobile = ref(false)
+let mobileMedia: MediaQueryList | undefined
+let previousOverflow = ''
 
 const SIDEBAR_STORAGE_KEY = 'request-hub-sidebar-collapsed'
 
@@ -156,12 +162,46 @@ const currentSection = computed(() => {
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
-  window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed.value))
+  try {
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed.value))
+  } catch {
+    ElMessage.info('侧栏已调整；浏览器限制了偏好保存。')
+  }
+}
+
+function syncMobile() {
+  isMobile.value = mobileMedia?.matches ?? false
+  if (!isMobile.value) mobileNavOpen.value = false
+}
+async function closeMobileNavigation() {
+  mobileNavOpen.value = false
+  await nextTick()
+  mobileMenuButton.value?.focus()
 }
 
 function handleGlobalKeydown(event: KeyboardEvent) {
+  if (mobileNavOpen.value && event.key === 'Escape') {
+    event.preventDefault()
+    void closeMobileNavigation()
+    return
+  }
+  if (mobileNavOpen.value && event.key === 'Tab') {
+    const controls = Array.from(
+      sidebar.value?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') ?? [],
+    ).filter((element) => element.getClientRects().length)
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last?.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first?.focus()
+    }
+  }
   if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
     event.preventDefault()
+    mobileNavOpen.value = false
     commandPaletteOpen.value = !commandPaletteOpen.value
   }
 }
@@ -179,18 +219,38 @@ async function handleLogout() {
 }
 
 watch(
-  () => route.fullPath,
-  () => {
+  () => route.path,
+  async () => {
     mobileNavOpen.value = false
+    await nextTick()
+    mainContent.value?.focus({ preventScroll: true })
   },
 )
 
+watch(mobileNavOpen, async (open) => {
+  if (open) {
+    previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    await nextTick()
+    if (mobileNavOpen.value) sidebar.value?.querySelector<HTMLElement>('.sidebar-close')?.focus()
+  } else document.body.style.overflow = previousOverflow
+})
+
 onMounted(() => {
-  sidebarCollapsed.value = window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true'
+  try {
+    sidebarCollapsed.value = window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true'
+  } catch {
+    sidebarCollapsed.value = false
+  }
+  mobileMedia = window.matchMedia?.('(max-width: 900px)')
+  syncMobile()
+  mobileMedia?.addEventListener('change', syncMobile)
   window.addEventListener('keydown', handleGlobalKeydown)
 })
 
 onUnmounted(() => {
+  if (mobileNavOpen.value) document.body.style.overflow = previousOverflow
+  mobileMedia?.removeEventListener('change', syncMobile)
   window.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
@@ -204,7 +264,15 @@ onUnmounted(() => {
       'app-shell--sidebar-collapsed': sidebarCollapsed,
     }"
   >
-    <aside id="primary-navigation" class="app-sidebar" aria-label="主导航">
+    <aside
+      ref="sidebar"
+      id="primary-navigation"
+      class="app-sidebar"
+      aria-label="主导航"
+      :inert="isMobile && !mobileNavOpen"
+      :role="isMobile && mobileNavOpen ? 'dialog' : undefined"
+      :aria-modal="isMobile && mobileNavOpen ? true : undefined"
+    >
       <div class="app-sidebar__brand">
         <RouterLink to="/dashboard" class="brand-link" :aria-label="`${PRODUCT_NAME}首页`">
           <span class="brand-mark" aria-hidden="true">
@@ -220,7 +288,7 @@ onUnmounted(() => {
           class="sidebar-close"
           aria-label="关闭导航"
           title="关闭导航"
-          @click="mobileNavOpen = false"
+          @click="closeMobileNavigation"
         >
           <X :size="20" aria-hidden="true" />
         </button>
@@ -244,6 +312,10 @@ onUnmounted(() => {
       </nav>
 
       <div class="sidebar-footer">
+        <div v-if="!sidebarCollapsed" class="sidebar-role">
+          <span>当前身份</span><strong>{{ roleLabel }}</strong
+          ><small>{{ isRequester ? '提出需求，跟进每一步' : '评估、协作与交付' }}</small>
+        </div>
         <button
           type="button"
           class="sidebar-toggle"
@@ -264,13 +336,14 @@ onUnmounted(() => {
       type="button"
       class="app-shell__backdrop"
       aria-label="关闭导航"
-      @click="mobileNavOpen = false"
+      @click="closeMobileNavigation"
     />
 
-    <div class="app-workspace">
+    <div class="app-workspace" :inert="isMobile && mobileNavOpen">
       <header class="app-header">
         <div class="app-header__context">
           <button
+            ref="mobileMenuButton"
             type="button"
             class="icon-button app-header__menu"
             aria-label="打开导航"
@@ -293,9 +366,19 @@ onUnmounted(() => {
         >
           <Search :size="17" aria-hidden="true" />
           <span>搜索需求或功能</span>
+          <kbd>Ctrl K</kbd>
         </button>
 
         <div class="app-header__actions">
+          <button
+            type="button"
+            class="icon-button mobile-search"
+            aria-label="搜索需求或功能"
+            aria-haspopup="dialog"
+            @click="commandPaletteOpen = true"
+          >
+            <Search :size="20" aria-hidden="true" />
+          </button>
           <el-button
             v-if="canCreateRequest"
             class="header-create"
@@ -336,7 +419,7 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <main id="main-content" class="app-main" tabindex="-1">
+      <main ref="mainContent" id="main-content" class="app-main" tabindex="-1">
         <RouterView v-slot="{ Component, route: currentRoute }">
           <div :key="currentRoute.fullPath" class="app-route-view">
             <component :is="Component" />
@@ -375,8 +458,8 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   color: #e2e8f0;
-  background: #111827;
-  border-right: 1px solid #1f2937;
+  background: var(--color-ink);
+  border-right: 1px solid var(--color-ink);
 }
 
 .app-sidebar__brand {
@@ -449,7 +532,7 @@ onUnmounted(() => {
 
 .nav-group h2 {
   margin: 0 10px 6px;
-  color: #7f8da3;
+  color: #b0c7d9;
   font-size: 11px;
   font-weight: 650;
   line-height: 20px;
@@ -480,7 +563,7 @@ onUnmounted(() => {
 
 .nav-item.router-link-active {
   color: #ffffff;
-  background: rgb(37 99 235 / 28%);
+  background: #294c6d;
   font-weight: 600;
 }
 
@@ -491,7 +574,7 @@ onUnmounted(() => {
   left: 0;
   width: 3px;
   content: '';
-  background: var(--color-primary);
+  background: #ffe28a;
   border-radius: 0 3px 3px 0;
 }
 
@@ -502,6 +585,35 @@ onUnmounted(() => {
 .sidebar-footer {
   padding: 12px;
   border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.sidebar-role {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #406078;
+  border-radius: var(--radius-md);
+}
+.sidebar-role > span,
+.sidebar-role small {
+  font-size: 12px;
+  color: var(--color-on-ink-muted);
+}
+.sidebar-role strong {
+  font-size: 14px;
+  color: var(--color-on-ink);
+}
+.mobile-search {
+  display: none;
+}
+.global-search kbd {
+  font: 11px var(--font-mono);
+  color: var(--color-text-tertiary);
+  border: 1px solid var(--color-border);
+  padding: 3px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .sidebar-toggle {
@@ -752,6 +864,9 @@ onUnmounted(() => {
 }
 
 @media (max-width: 900px) {
+  .mobile-search {
+    display: inline-grid;
+  }
   .app-shell {
     display: block;
   }

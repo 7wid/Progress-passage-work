@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
@@ -35,6 +35,7 @@ const page = ref(1)
 const pageSize = 20
 const total = ref(0)
 const openingId = ref<string | null>(null)
+const notificationPage = ref<HTMLElement>()
 let loadSequence = 0
 
 const canMarkAll = computed(
@@ -111,6 +112,7 @@ function replaceNotification(updated: NotificationRecord): void {
 async function markOne(notification: NotificationRecord, navigate: boolean): Promise<void> {
   if (openingId.value !== null || notificationStore.isMarking(notification.id)) return
   openingId.value = notification.id
+  const originalFocus = document.activeElement
 
   try {
     const willNavigate = navigate && notification.requestId !== null
@@ -139,6 +141,22 @@ async function markOne(notification: NotificationRecord, navigate: boolean): Pro
     ElMessage.error(getApiErrorMessage(error, '通知状态更新失败，请稍后重试'))
   } finally {
     openingId.value = null
+    await nextTick()
+    if (
+      !navigate &&
+      originalFocus instanceof HTMLElement &&
+      (!originalFocus.isConnected || !items.value.some((item) => item.id === notification.id)) &&
+      (document.activeElement === originalFocus || document.activeElement === document.body)
+    ) {
+      // A leaving row can remain in the DOM during its transition; focus a current record.
+      const nextRow = Array.from(
+        notificationPage.value?.querySelectorAll<HTMLElement>('[data-notification-id]') ?? [],
+      ).find((element) => element.dataset.notificationId === items.value[0]?.id)
+      const nextControl =
+        nextRow?.querySelector<HTMLElement>('.notification-main') ??
+        notificationPage.value?.querySelector<HTMLElement>('[data-test="refresh"]')
+      nextControl?.focus()
+    }
   }
 }
 
@@ -174,7 +192,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page">
+  <section ref="notificationPage" class="page">
     <AppPageHeader
       title="站内通知"
       description="集中查看需求流转、协作与交付动态。"
@@ -226,13 +244,27 @@ onMounted(() => {
     </el-alert>
 
     <el-card v-loading="loading" class="notification-card">
-      <el-empty v-if="!loading && items.length === 0" description="暂无通知">
+      <el-empty
+        v-if="!loading && !errorMessage && items.length === 0"
+        :description="
+          activeFilter === 'UNREAD'
+            ? '未读通知已处理完毕'
+            : '暂无通知，有新的协作动态时会显示在这里'
+        "
+      >
         <template #image>
           <span class="empty-notification-icon" aria-hidden="true"><BellOff :size="28" /></span>
         </template>
       </el-empty>
 
-      <ul v-else class="notification-list" aria-live="polite">
+      <TransitionGroup
+        v-else
+        tag="ul"
+        name="notification-update"
+        class="notification-list"
+        aria-live="polite"
+        :aria-busy="loading"
+      >
         <li
           v-for="notification in items"
           :key="notification.id"
@@ -280,7 +312,7 @@ onMounted(() => {
             标为已读
           </el-button>
         </li>
-      </ul>
+      </TransitionGroup>
 
       <el-pagination
         v-if="total > pageSize"
@@ -296,6 +328,29 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.notification-update-enter-active,
+.notification-update-leave-active {
+  transition:
+    opacity 180ms,
+    transform 180ms;
+}
+.notification-update-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.notification-update-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
+}
+.notification-update-leave-active {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-update-enter-active,
+  .notification-update-leave-active {
+    transition: none;
+  }
+}
 .unread-summary {
   display: inline-flex;
   align-items: center;

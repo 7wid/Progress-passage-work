@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import {
   AtSign,
@@ -29,6 +30,12 @@ const loading = ref(false)
 const savingProfile = ref(false)
 const changingPassword = ref(false)
 const profile = ref<UserProfile | null>(null)
+const settingsPage = ref<HTMLElement>()
+const profileFeedback = ref('')
+const passwordFeedback = ref('')
+const profileError = ref('')
+const passwordError = ref('')
+const savedProfile = ref('')
 
 const profileForm = reactive<UpdateProfileInput>({
   displayName: '',
@@ -41,6 +48,41 @@ const passwordForm = reactive({
   currentPassword: '',
   newPassword: '',
   confirmPassword: '',
+})
+const profileDirty = computed(
+  () => savedProfile.value !== '' && JSON.stringify(profileForm) !== savedProfile.value,
+)
+const hasUnsavedChanges = computed(
+  () => profileDirty.value || Object.values(passwordForm).some(Boolean),
+)
+async function focusInvalid(section: string) {
+  await nextTick()
+  settingsPage.value
+    ?.querySelector<HTMLElement>(`.settings-card--${section} .is-error input`)
+    ?.focus()
+}
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (hasUnsavedChanges.value || savingProfile.value || changingPassword.value) {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+onBeforeRouteLeave(async () => {
+  if (savingProfile.value || changingPassword.value) {
+    ElMessage.info('正在保存，请稍候再离开。')
+    return false
+  }
+  if (!hasUnsavedChanges.value) return true
+  try {
+    await ElMessageBox.confirm('资料或密码还未保存，离开后需要重新填写。', '离开个人设置？', {
+      confirmButtonText: '放弃修改并离开',
+      cancelButtonText: '继续填写',
+      type: 'warning',
+    })
+    return true
+  } catch {
+    return false
+  }
 })
 
 const profileRules: FormRules = {
@@ -96,7 +138,10 @@ const profileInitials = computed(() => {
 })
 
 const passwordChecks = computed(() => [
-  { label: '8～72 个字符', passed: passwordForm.newPassword.length >= 8 },
+  {
+    label: '8～72 个字符',
+    passed: passwordForm.newPassword.length >= 8 && passwordForm.newPassword.length <= 72,
+  },
   { label: '包含字母', passed: /[A-Za-z]/.test(passwordForm.newPassword) },
   { label: '包含数字', passed: /\d/.test(passwordForm.newPassword) },
 ])
@@ -105,6 +150,7 @@ const passwordStrength = computed(() => passwordChecks.value.filter((item) => it
 
 async function loadProfile() {
   loading.value = true
+  profileError.value = ''
   try {
     profile.value = await getProfile()
     Object.assign(profileForm, {
@@ -113,56 +159,82 @@ async function loadProfile() {
       phone: profile.value.phone ?? '',
       department: profile.value.department ?? '',
     })
+    savedProfile.value = JSON.stringify(profileForm)
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '个人资料加载失败'))
+    profileError.value = getApiErrorMessage(error, '个人资料加载失败，请重试。')
   } finally {
     loading.value = false
   }
 }
 
 async function saveProfile() {
-  if (!profileFormRef.value || savingProfile.value) return
-  const valid = await profileFormRef.value.validate().catch(() => false)
-  if (!valid) return
+  if (!profileFormRef.value || savingProfile.value || loading.value || !profile.value) return
   savingProfile.value = true
+  profileFeedback.value = ''
+  profileError.value = ''
+  let validationFailed = false
   try {
-    profile.value = await updateProfile(profileForm)
+    const snapshot = { ...profileForm }
+    const valid = await profileFormRef.value.validate().catch(() => false)
+    if (!valid) {
+      profileError.value = '请检查标红的资料项。'
+      validationFailed = true
+      return
+    }
+    profile.value = await updateProfile(snapshot)
+    savedProfile.value = JSON.stringify(snapshot)
     authStore.updateDisplayName(profile.value.displayName)
+    profileFeedback.value = '资料已保存，下次协作会使用更新后的信息。'
     ElMessage.success('个人资料已更新')
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '个人资料更新失败'))
+    profileError.value = getApiErrorMessage(error, '个人资料更新失败，已保留填写内容，请重试。')
   } finally {
     savingProfile.value = false
+    if (validationFailed) await focusInvalid('profile')
   }
 }
 
 async function savePassword() {
   if (!passwordFormRef.value || changingPassword.value) return
-  const valid = await passwordFormRef.value.validate().catch(() => false)
-  if (!valid) return
   changingPassword.value = true
+  passwordError.value = ''
+  passwordFeedback.value = ''
+  let validationFailed = false
   try {
-    await changePassword({
+    const snapshot = {
       currentPassword: passwordForm.currentPassword,
       newPassword: passwordForm.newPassword,
-    })
+    }
+    const valid = await passwordFormRef.value.validate().catch(() => false)
+    if (!valid) {
+      passwordError.value = '请检查当前密码和新密码要求。'
+      validationFailed = true
+      return
+    }
+    await changePassword(snapshot)
     passwordForm.currentPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
     passwordFormRef.value.resetFields()
+    passwordFeedback.value = '密码已修改，其他登录会话已失效。'
     ElMessage.success('密码已修改，其他登录会话已失效')
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '密码修改失败'))
+    passwordError.value = getApiErrorMessage(error, '密码修改失败，请检查当前密码后重试。')
   } finally {
     changingPassword.value = false
+    if (validationFailed) await focusInvalid('security')
   }
 }
 
-onMounted(loadProfile)
+onMounted(() => {
+  void loadProfile()
+  window.addEventListener('beforeunload', beforeUnload)
+})
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 </script>
 
 <template>
-  <section class="page">
+  <section ref="settingsPage" class="page">
     <AppPageHeader
       title="个人设置"
       description="管理个人资料、联系信息与登录凭据。"
@@ -216,6 +288,8 @@ onMounted(loadProfile)
           ref="profileFormRef"
           :model="profileForm"
           :rules="profileRules"
+          :disabled="loading || savingProfile || !profile"
+          :scroll-to-error="true"
           label-position="top"
           class="settings-form"
           @submit.prevent="saveProfile"
@@ -250,6 +324,13 @@ onMounted(loadProfile)
               <template #prefix><Building2 :size="16" aria-hidden="true" /></template>
             </el-input>
           </el-form-item>
+          <p v-if="profileDirty" class="settings-save-hint">资料有未保存的修改</p>
+          <p v-if="profileError" class="settings-feedback settings-feedback--error" role="alert">
+            {{ profileError }}
+          </p>
+          <p v-if="profileFeedback && !profileDirty" class="settings-feedback" role="status">
+            {{ profileFeedback }}
+          </p>
           <div class="actions">
             <el-button type="primary" native-type="submit" :loading="savingProfile">
               <Save :size="16" aria-hidden="true" />
@@ -257,6 +338,7 @@ onMounted(loadProfile)
             </el-button>
           </div>
         </el-form>
+        <el-button v-if="!profile && !loading" @click="loadProfile">重新加载资料</el-button>
       </el-card>
 
       <el-card class="settings-card settings-card--security">
@@ -284,6 +366,8 @@ onMounted(loadProfile)
           ref="passwordFormRef"
           :model="passwordForm"
           :rules="passwordRules"
+          :disabled="changingPassword"
+          :scroll-to-error="true"
           label-position="top"
           class="settings-form"
           @submit.prevent="savePassword"
@@ -340,6 +424,12 @@ onMounted(loadProfile)
               <template #prefix><LockKeyhole :size="16" aria-hidden="true" /></template>
             </el-input>
           </el-form-item>
+          <p v-if="passwordError" class="settings-feedback settings-feedback--error" role="alert">
+            {{ passwordError }}
+          </p>
+          <p v-if="passwordFeedback" class="settings-feedback" role="status">
+            {{ passwordFeedback }}
+          </p>
           <div class="actions">
             <el-button type="primary" native-type="submit" :loading="changingPassword">
               <ShieldCheck :size="16" aria-hidden="true" />
@@ -353,6 +443,24 @@ onMounted(loadProfile)
 </template>
 
 <style scoped>
+.settings-feedback {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--color-success-strong);
+  background: var(--color-success-soft);
+  border-radius: var(--radius-md);
+}
+.settings-feedback--error {
+  color: var(--color-danger);
+  background: #fef2f2;
+}
+.settings-save-hint {
+  padding: 10px 14px;
+  color: var(--color-note-text);
+  background: var(--color-note);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
 .settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.9fr);

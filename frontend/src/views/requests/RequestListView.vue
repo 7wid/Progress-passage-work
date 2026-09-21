@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ClipboardList, Filter, Plus, RotateCcw, Search } from '@lucide/vue'
+import { ChevronDown, ClipboardList, Filter, Plus, RotateCcw, Search } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getEnabledCategories } from '@/api/categories'
 import { getRequests } from '@/api/requests'
 import RequestStatusTag from '@/components/common/RequestStatusTag.vue'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import CollectionViewToggle from '@/components/common/CollectionViewToggle.vue'
+import RequestCollectionCards from '@/components/requests/RequestCollectionCards.vue'
 import { useAuthStore } from '@/stores/auth'
 import type {
   CategoryOption,
@@ -26,6 +28,10 @@ const categories = ref<CategoryOption[]>([])
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+const viewMode = ref<'table' | 'cards'>('table')
+const advancedOpen = ref(false)
+const errorMessage = ref('')
+const resultSummary = ref('全部需求')
 let loadSequence = 0
 
 const filters = reactive<{
@@ -108,6 +114,19 @@ async function loadCategories() {
 async function loadData() {
   const currentSequence = ++loadSequence
   loading.value = true
+  errorMessage.value = ''
+  const summary =
+    [
+      filters.keyword.trim() ? `关键词：${filters.keyword.trim()}` : '',
+      statusOptions.find((item) => item.value === filters.status)?.label,
+      categories.value.find((item) => item.id === filters.categoryId)?.name,
+      filters.submittedRange?.length === 2 ? filters.submittedRange.join(' 至 ') : '',
+      filters.sort !== 'NEWEST'
+        ? sortOptions.find((item) => item.value === filters.sort)?.label
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' / ') || '全部需求'
 
   try {
     const result = await getRequests({
@@ -116,8 +135,8 @@ async function loadData() {
       keyword: filters.keyword,
       status: filters.status,
       categoryId: filters.categoryId,
-      submittedFrom: filters.submittedRange[0],
-      submittedTo: filters.submittedRange[1],
+      submittedFrom: filters.submittedRange?.[0],
+      submittedTo: filters.submittedRange?.[1],
       sort: filters.sort,
     })
 
@@ -125,11 +144,12 @@ async function loadData() {
 
     items.value = result.items
     total.value = result.total
+    resultSummary.value = summary
   } catch {
     if (currentSequence === loadSequence) {
       items.value = []
       total.value = 0
-      ElMessage.error('需求列表加载失败，请稍后重试')
+      errorMessage.value = '需求列表加载失败，请重试。筛选条件已保留。'
     }
   } finally {
     if (currentSequence === loadSequence) loading.value = false
@@ -190,7 +210,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page">
+  <section class="page request-list-page">
     <AppPageHeader
       :title="pageTitle"
       :description="pageDescription"
@@ -209,7 +229,16 @@ onMounted(() => {
       <template #header>
         <div class="filter-card__heading">
           <span><Filter :size="17" aria-hidden="true" />筛选需求</span>
-          <small>可组合多个条件</small>
+          <button
+            type="button"
+            class="filter-disclosure"
+            :aria-expanded="advancedOpen"
+            aria-controls="request-advanced-filters"
+            @click="advancedOpen = !advancedOpen"
+          >
+            {{ advancedOpen ? '收起更多条件' : '更多筛选' }}
+            <ChevronDown :size="16" aria-hidden="true" />
+          </button>
         </div>
       </template>
       <el-form class="filters" label-position="top" @submit.prevent="search">
@@ -244,27 +273,28 @@ onMounted(() => {
           </el-select>
         </el-form-item>
 
-        <el-form-item label="发起日期">
-          <el-date-picker
-            v-model="filters.submittedRange"
-            type="daterange"
-            value-format="YYYY-MM-DD"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-          />
-        </el-form-item>
-
-        <el-form-item label="排序">
-          <el-select v-model="filters.sort">
-            <el-option
-              v-for="option in sortOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
+        <div v-show="advancedOpen" id="request-advanced-filters" class="advanced-filters">
+          <el-form-item label="发起日期">
+            <el-date-picker
+              v-model="filters.submittedRange"
+              type="daterange"
+              value-format="YYYY-MM-DD"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
             />
-          </el-select>
-        </el-form-item>
+          </el-form-item>
 
+          <el-form-item label="排序">
+            <el-select v-model="filters.sort">
+              <el-option
+                v-for="option in sortOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </div>
         <div class="filters__actions">
           <el-button type="primary" native-type="submit">
             <Search :size="16" aria-hidden="true" />
@@ -278,22 +308,46 @@ onMounted(() => {
       </el-form>
     </el-card>
 
-    <el-card class="results-card">
+    <el-alert v-if="errorMessage" :title="errorMessage" type="error" :closable="false">
+      <el-button link type="primary" @click="loadData">重新加载</el-button>
+    </el-alert>
+
+    <el-card
+      class="results-card collection-results"
+      :class="{ 'collection-results--cards': viewMode === 'cards' }"
+      :aria-busy="loading"
+    >
       <template #header>
         <div class="results-heading">
           <div>
             <strong>需求结果</strong>
             <span>共 {{ total }} 条</span>
           </div>
-          <span>第 {{ page }} 页</span>
+          <CollectionViewToggle v-model="viewMode" />
         </div>
+        <p class="result-summary" role="status">
+          {{
+            loading
+              ? '正在查询…'
+              : errorMessage
+                ? '结果暂不可用'
+                : `${resultSummary} · 第 ${page} 页`
+          }}
+        </p>
       </template>
+      <RequestCollectionCards
+        v-if="items.length"
+        v-loading="loading"
+        class="collection-cards"
+        :items="items"
+        @open="openDetail"
+      />
       <el-table
         v-loading="loading"
         :data="items"
         row-key="id"
         empty-text="未找到符合条件的需求"
-        class="request-table"
+        class="request-table collection-table"
         @row-click="(row: RequestSummary) => openDetail(row.id)"
       >
         <el-table-column label="需求编号" width="180">
@@ -335,6 +389,13 @@ onMounted(() => {
         </el-table-column>
       </el-table>
 
+      <div v-if="!loading && !errorMessage && !items.length" class="collection-empty">
+        <Search :size="26" aria-hidden="true" />
+        <strong>没有找到匹配的需求</strong>
+        <p>试试缩短关键词或清除筛选条件。</p>
+        <el-button @click="reset">清除筛选</el-button>
+      </div>
+
       <el-pagination
         :current-page="page"
         :page-size="pageSize"
@@ -350,6 +411,38 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.result-summary {
+  margin: 12px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.filter-disclosure {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px;
+  color: var(--color-primary-strong);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+}
+.filter-disclosure svg {
+  transition: transform var(--motion-fast);
+}
+.filter-disclosure[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.advanced-filters {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-subtle);
+}
 .filter-card,
 .results-card {
   min-width: 0;
@@ -394,7 +487,7 @@ onMounted(() => {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) repeat(4, minmax(150px, 1fr)) auto;
+  grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(150px, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -412,6 +505,7 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   padding-bottom: 1px;
+  grid-column: 1 / -1;
 }
 
 .filters__actions :deep(.el-button) {
@@ -463,8 +557,14 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  .filters {
+  .advanced-filters {
     grid-template-columns: 1fr;
+  }
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filters > :first-child {
+    grid-column: 1 / -1;
   }
 
   .filters__actions {

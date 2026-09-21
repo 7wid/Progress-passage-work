@@ -14,6 +14,7 @@ import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '@/api/ht
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
 import MemberEditorDialog from '@/components/admin/MemberEditorDialog.vue'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import TableDetailToggle from '@/components/common/TableDetailToggle.vue'
 import { useAuthStore } from '@/stores/auth'
 import type {
   AdminMember,
@@ -25,6 +26,7 @@ import type {
 
 const authStore = useAuthStore()
 const loading = ref(false)
+const expandedColumns = ref(false)
 const errorMessage = ref('')
 const items = ref<AdminMember[]>([])
 const page = ref(1)
@@ -350,9 +352,10 @@ onMounted(() => {
       </template>
     </el-alert>
 
-    <el-card class="result-card">
+    <el-card class="result-card admin-result-card">
       <template #header>
         <div class="result-heading">
+          <TableDetailToggle v-model="expandedColumns" label="联系与时间" />
           <span><UsersRound :size="17" aria-hidden="true" />成员清单</span>
           <small>第 {{ page }} 页</small>
         </div>
@@ -360,7 +363,7 @@ onMounted(() => {
       <el-table v-loading="loading" :data="items" row-key="id" empty-text="暂无成员账号">
         <el-table-column prop="account" label="账号" min-width="130" />
         <el-table-column prop="displayName" label="显示名称" min-width="120" />
-        <el-table-column label="角色" width="110">
+        <el-table-column label="角色" width="140">
           <template #default="{ row }">
             <el-tag :type="row.role === 'ADMIN' ? 'danger' : 'primary'">
               {{ row.role === 'ADMIN' ? '管理员' : '服务团队成员' }}
@@ -377,13 +380,13 @@ onMounted(() => {
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column label="联系方式" min-width="180">
+        <el-table-column v-if="expandedColumns" label="联系方式" min-width="180">
           <template #default="{ row }">
             <div>{{ row.email ?? '—' }}</div>
             <div class="secondary-text">{{ row.phone ?? '—' }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="department" label="院系/部门" min-width="130">
+        <el-table-column v-if="expandedColumns" prop="department" label="院系/部门" min-width="130">
           <template #default="{ row }">{{ row.department ?? '—' }}</template>
         </el-table-column>
         <el-table-column label="负责中" width="90" align="center">
@@ -396,7 +399,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" width="170">
+        <el-table-column v-if="expandedColumns" label="更新时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">

@@ -12,11 +12,13 @@ import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors } from '@/api/ht
 import AdminReasonDialog from '@/components/admin/AdminReasonDialog.vue'
 import CategoryEditorDialog from '@/components/admin/CategoryEditorDialog.vue'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import TableDetailToggle from '@/components/common/TableDetailToggle.vue'
 import type { AdminCategory, AdminCategoryEditorValue } from '@/types/admin'
 
 type CategoryStatusFilter = 'ALL' | 'ENABLED' | 'DISABLED'
 
 const loading = ref(false)
+const expandedColumns = ref(false)
 const errorMessage = ref('')
 const items = ref<AdminCategory[]>([])
 const keyword = ref('')
@@ -215,9 +217,10 @@ onMounted(() => void loadCategories())
       </template>
     </el-alert>
 
-    <el-card class="result-card">
+    <el-card class="result-card admin-result-card">
       <template #header>
         <div class="result-heading">
+          <TableDetailToggle v-model="expandedColumns" label="创建与更新时间" />
           <span><Tags :size="17" aria-hidden="true" />分类清单</span>
           <small>当前显示 {{ filteredItems.length }} 项</small>
         </div>
@@ -237,10 +240,10 @@ onMounted(() => void loadCategories())
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="180">
+        <el-table-column v-if="expandedColumns" label="创建时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="更新时间" width="180">
+        <el-table-column v-if="expandedColumns" label="更新时间" width="180">
           <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">

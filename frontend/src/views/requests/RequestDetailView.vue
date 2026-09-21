@@ -19,6 +19,7 @@ import AssignmentPanel from '@/components/assignment/AssignmentPanel.vue'
 import AttachmentList from '@/components/common/AttachmentList.vue'
 import AttachmentUploader from '@/components/common/AttachmentUploader.vue'
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
+import SectionNavigator from '@/components/common/SectionNavigator.vue'
 import DeliveryAcceptancePanel from '@/components/delivery/DeliveryAcceptancePanel.vue'
 import ProgressPanel from '@/components/progress/ProgressPanel.vue'
 import RequestTimeline from '@/components/progress/RequestTimeline.vue'
@@ -105,6 +106,14 @@ const isTeamMember = computed(
 const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
 const isRequester = computed(() => authStore.user?.role === 'REQUESTER')
+const detailSections = computed(() => [
+  { id: 'request-overview', label: '概览' },
+  { id: 'request-content', label: '需求说明' },
+  { id: 'request-attachments', label: '附件' },
+  { id: 'request-evaluations', label: '评估' },
+  ...(progressSnapshot.value ? [{ id: 'request-progress', label: '进度' }] : []),
+  ...(deliveryAcceptanceSnapshot.value ? [{ id: 'delivery-acceptance', label: '交付验收' }] : []),
+])
 
 const isCreator = computed(
   () => detail.value !== null && authStore.user?.id === detail.value.creatorId,
@@ -505,9 +514,11 @@ watch(
         </template>
       </AppPageHeader>
 
+      <SectionNavigator label="需求内容" :items="detailSections" />
+
       <RequesterJourneyPanel v-if="isRequester && isCreator" :status="detail.status" />
 
-      <el-card class="overview-card">
+      <el-card id="request-overview" tabindex="-1" class="overview-card workflow-anchor">
         <template #header>
           <div class="detail-section-heading">
             <span aria-hidden="true"><ListTodo :size="18" /></span>
@@ -557,7 +568,7 @@ watch(
         </el-descriptions>
       </el-card>
 
-      <el-card class="request-content-card">
+      <el-card id="request-content" tabindex="-1" class="request-content-card workflow-anchor">
         <template #header>
           <div class="detail-section-heading">
             <span aria-hidden="true"><ScrollText :size="18" /></span>
@@ -584,7 +595,7 @@ watch(
         </div>
       </el-card>
 
-      <el-card>
+      <el-card id="request-attachments" tabindex="-1" class="workflow-anchor">
         <template #header>
           <div class="detail-section-heading">
             <span class="detail-section-heading__icon--orange" aria-hidden="true">
@@ -623,12 +634,14 @@ watch(
       <!-- 评估历史 -->
       <!-- ===================================================== -->
 
-      <EvaluationHistory
-        :evaluations="evaluations"
-        :confirmable-evaluation-id="confirmableEvaluationId"
-        :confirming-evaluation-id="confirmingEvaluationId"
-        @confirm-rejection="handleConfirmRejection"
-      />
+      <section id="request-evaluations" tabindex="-1" class="workflow-anchor" aria-label="评估记录">
+        <EvaluationHistory
+          :evaluations="evaluations"
+          :confirmable-evaluation-id="confirmableEvaluationId"
+          :confirming-evaluation-id="confirmingEvaluationId"
+          @confirm-rejection="handleConfirmRejection"
+        />
+      </section>
 
       <!-- ===================================================== -->
       <!-- 等待管理员确认不承接 -->
@@ -692,18 +705,25 @@ watch(
         @conflict="handleAssignmentConflict"
       />
 
-      <ProgressPanel
+      <section
         v-if="progressSnapshot"
-        :key="progressSnapshot.requestVersion"
-        :snapshot="progressSnapshot"
-        @updated="handleProgressUpdated"
-        @conflict="handleProgressConflict"
-      />
+        id="request-progress"
+        tabindex="-1"
+        class="workflow-anchor"
+        aria-label="处理进度"
+      >
+        <ProgressPanel
+          :key="progressSnapshot.requestVersion"
+          :snapshot="progressSnapshot"
+          @updated="handleProgressUpdated"
+          @conflict="handleProgressConflict"
+        />
+      </section>
 
       <section
         v-if="deliveryAcceptanceSnapshot"
         id="delivery-acceptance"
-        class="detail-anchor"
+        class="detail-anchor workflow-anchor"
         tabindex="-1"
         aria-label="交付与验收"
       >
@@ -841,7 +861,7 @@ watch(
 }
 
 .detail-anchor {
-  scroll-margin-top: 92px;
+  scroll-margin-top: 190px;
   outline: none;
 }
 
