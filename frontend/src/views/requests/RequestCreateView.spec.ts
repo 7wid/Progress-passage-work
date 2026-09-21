@@ -179,6 +179,134 @@ describe('需求编辑与提交可靠性', () => {
     vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue(confirmed)
   })
 
+  it.each(['draft', 'submit'] as const)(
+    '新建 %s 超时后只用原始内容和同一凭据重试',
+    async (kind) => {
+      const api = kind === 'draft' ? vi.mocked(createDraft) : vi.mocked(createRequest)
+      api.mockRejectedValueOnce(new Error('timeout')).mockResolvedValueOnce({
+        id: '102',
+        requestNo: kind === 'draft' ? null : 'REQ-102',
+        status: kind === 'draft' ? 'DRAFT' : 'PENDING_REVIEW',
+      })
+      const { wrapper, router } = await mountPage('/requests/new')
+      await wrapper.get('input').setValue('原始需求标题')
+      if (kind === 'draft') {
+        await wrapper
+          .findAll('button')
+          .find((button) => button.text().includes('保存草稿'))!
+          .trigger('click')
+      } else {
+        await wrapper.get('form').trigger('submit')
+      }
+      await flushPromises()
+      expect(wrapper.text()).toContain('暂未确认创建结果')
+      expect(wrapper.get('fieldset').element.disabled).toBe(true)
+      expect(wrapper.get('input').element.value).toBe('原始需求标题')
+      const first = api.mock.calls[0]!
+      expect(first[1]).toMatch(/^[0-9a-f-]{36}$/)
+      await wrapper.get('form').trigger('submit')
+      expect(api).toHaveBeenCalledTimes(1)
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('重试并查看结果'))!
+        .trigger('click')
+      await flushPromises()
+      expect(api.mock.calls[1]).toEqual(first)
+      expect(router.currentRoute.value.path).toBe('/requests/102')
+    },
+  )
+
+  it('创建凭据冲突停止重试并引导核对列表', async () => {
+    vi.mocked(createDraft).mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409, data: { error: { code: 'IDEMPOTENCY_KEY_CONFLICT' } } },
+    })
+    const { wrapper } = await mountPage('/requests/new')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('保存草稿'))!
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('已停止重试')
+    expect(wrapper.text()).toContain('前往我的需求核对')
+    expect(wrapper.text()).not.toContain('重试并查看结果')
+    expect(wrapper.get('fieldset').element.disabled).toBe(true)
+  })
+
+  it('明确的字段校验错误允许修改后重新创建', async () => {
+    vi.mocked(createDraft)
+      .mockRejectedValueOnce({
+        isAxiosError: true,
+        response: {
+          status: 400,
+          data: { error: { code: 'INVALID_ARGUMENT', message: '分类已停用' } },
+        },
+      })
+      .mockResolvedValueOnce({ id: '102', requestNo: null, status: 'DRAFT' })
+    const { wrapper } = await mountPage('/requests/new')
+    const save = () =>
+      wrapper.findAll('button').find((button) => button.text().includes('保存草稿'))!
+    await save().trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('分类已停用')
+    expect(wrapper.get('fieldset').element.disabled).toBe(false)
+    await wrapper.get('input').setValue('修正后的内容')
+    await save().trigger('click')
+    await flushPromises()
+    expect(vi.mocked(createDraft).mock.calls[1]![1]).not.toBe(
+      vi.mocked(createDraft).mock.calls[0]![1],
+    )
+  })
+
+  it('重试处理中禁止连续重试，并在离页时提示核对结果', async () => {
+    const pending = deferred<Awaited<ReturnType<typeof createDraft>>>()
+    vi.mocked(createDraft)
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockReturnValueOnce(pending.promise)
+    const { wrapper, router } = await mountPage('/requests/new')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('保存草稿'))!
+      .trigger('click')
+    await flushPromises()
+    vi.mocked(ElMessageBox.confirm).mockRejectedValueOnce('cancel')
+    await router.push('/requests')
+    expect(router.currentRoute.value.path).toBe('/requests/new')
+    expect(ElMessageBox.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('创建结果尚未核对'),
+      expect.any(String),
+      expect.any(Object),
+    )
+    const retry = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('重试并查看结果'))!
+    await retry.trigger('click')
+    await retry.trigger('click')
+    expect(createDraft).toHaveBeenCalledTimes(2)
+    pending.resolve({ id: '102', requestNo: null, status: 'DRAFT' })
+    await flushPromises()
+  })
+
+  it('创建成功但详情导航受阻时复用已确认结果', async () => {
+    vi.mocked(createDraft).mockResolvedValueOnce({ id: '102', requestNo: null, status: 'DRAFT' })
+    const { wrapper, router } = await mountPage('/requests/new')
+    const removeGuard = router.beforeEach((to) => to.path !== '/requests/102')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('保存草稿'))!
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('需求已保存，暂未打开详情')
+    removeGuard()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('重试并查看结果'))!
+      .trigger('click')
+    await flushPromises()
+    expect(createDraft).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.path).toBe('/requests/102')
+  })
+
   it('保存成功但提交失败后保留输入，并使用最新版本重试', async () => {
     vi.mocked(submitRequest).mockRejectedValueOnce(new Error('offline'))
     const { wrapper, router } = await mountPage()
@@ -255,7 +383,10 @@ describe('需求编辑与提交可靠性', () => {
       .trigger('click')
     await flushPromises()
     expect(validate).not.toHaveBeenCalled()
-    expect(createDraft).toHaveBeenCalledWith(expect.objectContaining({ title: '草稿' }))
+    expect(createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '草稿' }),
+      expect.any(String),
+    )
     expect(createRequest).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe('/requests/102')
   })
@@ -270,7 +401,10 @@ describe('需求编辑与提交可靠性', () => {
     await wrapper.get('input').setValue('新需求标题')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(createRequest).toHaveBeenCalledWith(expect.objectContaining({ title: '新需求标题' }))
+    expect(createRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '新需求标题' }),
+      expect.any(String),
+    )
     expect(updateRequest).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe('/requests/102')
   })

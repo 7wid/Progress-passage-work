@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,7 @@ import cn.edu.techgroup.outsourcing.modules.request.dto.SaveDraftCommand;
 import cn.edu.techgroup.outsourcing.modules.request.dto.SubmitRequestCommand;
 import cn.edu.techgroup.outsourcing.modules.request.dto.UpdateRequestCommand;
 import cn.edu.techgroup.outsourcing.modules.request.service.RequestService;
+import cn.edu.techgroup.outsourcing.modules.request.service.RequestCreationService;
 import cn.edu.techgroup.outsourcing.modules.request.service.RequesterRequestLifecycleService;
 import cn.edu.techgroup.outsourcing.modules.request.vo.CreatedRequestVO;
 import cn.edu.techgroup.outsourcing.modules.request.vo.RequestDetailVO;
@@ -36,12 +38,15 @@ public class RequestController {
 
     private final RequestService requestService;
     private final RequesterRequestLifecycleService lifecycleService;
+    private final RequestCreationService creationService;
 
     public RequestController(
             RequestService requestService,
-            RequesterRequestLifecycleService lifecycleService) {
+            RequesterRequestLifecycleService lifecycleService,
+            RequestCreationService creationService) {
         this.requestService = requestService;
         this.lifecycleService = lifecycleService;
+        this.creationService = creationService;
     }
 
     @PostMapping
@@ -49,10 +54,11 @@ public class RequestController {
     @PreAuthorize("hasAnyRole('REQUESTER', 'ADMIN')")
     public ApiResponse<CreatedRequestVO> create(
             @Valid @RequestBody CreateRequestCommand command,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal LoginUser loginUser) {
 
         return ApiResponse.success(
-                requestService.createAndSubmit(command, loginUser));
+                creationService.create(command, idempotencyKey, loginUser));
     }
 
     @PostMapping("/drafts")
@@ -60,8 +66,9 @@ public class RequestController {
     @PreAuthorize("hasAnyRole('REQUESTER', 'ADMIN')")
     public ApiResponse<CreatedRequestVO> createDraft(
             @Valid @RequestBody SaveDraftCommand command,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal LoginUser loginUser) {
-        return ApiResponse.success(lifecycleService.createDraft(command, loginUser));
+        return ApiResponse.success(creationService.createDraft(command, idempotencyKey, loginUser));
     }
 
     @GetMapping

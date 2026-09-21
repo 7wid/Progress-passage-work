@@ -9,21 +9,29 @@ import type {
 import { http } from './http'
 import type { ApiResponse, PageResponse } from '@/types/api'
 
-export async function createRequest(input: CreateRequestInput): Promise<CreatedRequest> {
+export async function createRequest(
+  input: CreateRequestInput,
+  idempotencyKey: string,
+): Promise<CreatedRequest> {
   await http.get<ApiResponse<string>>('/auth/csrf')
   const response = await http.post<ApiResponse<CreatedRequest>>(
     '/requests',
     contentPayload(input, true),
+    { headers: { 'Idempotency-Key': idempotencyKey } },
   )
 
   return response.data.data
 }
 
-export async function createDraft(input: CreateRequestInput): Promise<CreatedRequest> {
+export async function createDraft(
+  input: CreateRequestInput,
+  idempotencyKey: string,
+): Promise<CreatedRequest> {
   await http.get<ApiResponse<string>>('/auth/csrf')
   const response = await http.post<ApiResponse<CreatedRequest>>(
     '/requests/drafts',
     contentPayload(input, false),
+    { headers: { 'Idempotency-Key': idempotencyKey } },
   )
   return response.data.data
 }
@@ -65,7 +73,7 @@ export async function cancelRequest(
 
 function contentPayload(input: CreateRequestInput, includeConfirmation: boolean) {
   return {
-    categoryId: input.categoryId ? Number(input.categoryId) : null,
+    categoryId: input.categoryId || null,
     title: input.title.trim() || null,
     background: input.background.trim() || null,
     description: input.description.trim() || null,

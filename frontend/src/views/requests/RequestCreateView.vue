@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   onBeforeRouteLeave,
   onBeforeRouteUpdate,
@@ -11,7 +11,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowLeft, FilePenLine, Save, Send } from '@lucide/vue'
 import { getEnabledCategories } from '@/api/categories'
-import { getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
+import { getApiErrorCode, getApiErrorMessage, getApiFieldErrors, getApiStatus } from '@/api/http'
 import {
   createDraft,
   createRequest,
@@ -22,7 +22,12 @@ import {
 import AppPageHeader from '@/components/common/AppPageHeader.vue'
 import SectionNavigator from '@/components/common/SectionNavigator.vue'
 import RequestSupplementGuide from '@/components/requests/RequestSupplementGuide.vue'
-import type { CategoryOption, CreateRequestInput, RequestStatus } from '@/types/request'
+import type {
+  CategoryOption,
+  CreatedRequest,
+  CreateRequestInput,
+  RequestStatus,
+} from '@/types/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,8 +46,19 @@ const operationError = ref('')
 const fieldErrors = ref<Record<string, string>>({})
 const conflict = ref(false)
 const saveFeedback = ref('')
+const creationPending = ref(false)
+const creationConflict = ref(false)
+const creationNotice = ref<HTMLElement>()
+let creationAttempt: {
+  key: string
+  kind: 'draft' | 'submit'
+  input: CreateRequestInput
+  result?: CreatedRequest
+} | null = null
 const busy = computed(() => saving.value || submitting.value)
-const formLocked = computed(() => busy.value || initialLoading.value || hydrating.value)
+const formLocked = computed(
+  () => busy.value || initialLoading.value || hydrating.value || creationPending.value,
+)
 const cannotWrite = computed(
   () => formLocked.value || conflict.value || (isEditing.value && requestVersion.value === null),
 )
@@ -194,9 +210,56 @@ async function loadExistingRequest() {
 async function openSavedRequest(id: string) {
   navigatingAfterSuccess = true
   try {
-    await router.replace({ name: 'request-detail', params: { id } })
+    const failure = await router.replace({ name: 'request-detail', params: { id } })
+    if (failure) throw new Error('需求已保存，请重试打开详情')
   } finally {
     navigatingAfterSuccess = false
+  }
+}
+
+async function completeCreation() {
+  const attempt = creationAttempt
+  if (!attempt) return
+  try {
+    attempt.result ??= await (attempt.kind === 'draft' ? createDraft : createRequest)(
+      attempt.input,
+      attempt.key,
+    )
+    if (!active) return
+    dirty.value = false
+    ElMessage.success(
+      attempt.kind === 'draft' ? '需求草稿已保存' : `需求 ${attempt.result.requestNo} 已成功发起`,
+    )
+    await openSavedRequest(attempt.result.id)
+  } catch (error) {
+    if (!active) return
+    // Only an explicit validation rejection releases the attempt for editing.
+    // Timeouts, gateway errors and throttling must retain the original key and payload.
+    if (!attempt.result && getApiErrorCode(error) === 'INVALID_ARGUMENT') {
+      creationAttempt = null
+      creationPending.value = false
+      showWriteError(error, '请检查填写内容')
+      return
+    }
+    creationPending.value = true
+    creationConflict.value = getApiErrorCode(error) === 'IDEMPOTENCY_KEY_CONFLICT'
+    operationError.value = creationConflict.value
+      ? '本次创建与已保存内容不一致，已停止重试。请先到“我的需求”核对创建结果。'
+      : attempt.result
+        ? '需求已保存，暂未打开详情。点击“重试并查看结果”继续。'
+        : '暂未确认创建结果，原始内容已保留。请点击“重试并查看结果”，系统会核对同一次创建，避免重复生成需求。'
+    await nextTick()
+    creationNotice.value?.focus()
+  }
+}
+
+async function retryCreation() {
+  if (busy.value || !creationPending.value || creationConflict.value || !creationAttempt) return
+  saving.value = true
+  try {
+    await completeCreation()
+  } finally {
+    saving.value = false
   }
 }
 
@@ -232,10 +295,8 @@ async function handleSave() {
   const input = { ...form }
   try {
     if (!id) {
-      const created = await createDraft(input)
-      dirty.value = false
-      ElMessage.success('需求草稿已保存')
-      await openSavedRequest(created.id)
+      creationAttempt = { key: crypto.randomUUID(), kind: 'draft', input }
+      await completeCreation()
       return
     }
     if (requestVersion.value === null) return
@@ -275,10 +336,8 @@ async function handleSubmit() {
     }
     const input = { ...form }
     if (!id) {
-      const created = await createRequest(input)
-      dirty.value = false
-      ElMessage.success(`需求 ${created.requestNo} 已成功发起`)
-      await openSavedRequest(created.id)
+      creationAttempt = { key: crypto.randomUUID(), kind: 'submit', input }
+      await completeCreation()
       return
     }
     if (requestVersion.value === null) return
@@ -308,7 +367,7 @@ async function handleSubmit() {
 }
 
 function handleBeforeUnload(event: BeforeUnloadEvent) {
-  if (!dirty.value && !busy.value) return
+  if (!dirty.value && !busy.value && !creationPending.value) return
   event.preventDefault()
   event.returnValue = ''
 }
@@ -330,13 +389,19 @@ async function confirmLeaving() {
     ElMessage.warning('正在保存或提交，请等待处理结果后再离开')
     return false
   }
-  if (!dirty.value) return true
+  if (!dirty.value && !creationPending.value) return true
   try {
-    await ElMessageBox.confirm('当前修改尚未保存，确定离开吗？', '未保存的修改', {
-      type: 'warning',
-      confirmButtonText: '离开',
-      cancelButtonText: '继续编辑',
-    })
+    await ElMessageBox.confirm(
+      creationPending.value
+        ? '创建结果尚未核对。离开后请先到“我的需求”查看，避免重新填写造成重复。确定离开吗？'
+        : '当前修改尚未保存，确定离开吗？',
+      '离开填写页面',
+      {
+        type: 'warning',
+        confirmButtonText: '离开',
+        cancelButtonText: '继续编辑',
+      },
+    )
     return true
   } catch {
     return false
@@ -383,6 +448,19 @@ onBeforeUnmount(() => {
     />
 
     <el-card v-loading="initialLoading" class="request-form-card">
+      <div
+        v-if="creationPending"
+        ref="creationNotice"
+        class="form-notice"
+        role="alert"
+        tabindex="-1"
+      >
+        <p>{{ operationError }}</p>
+        <el-button v-if="!creationConflict" :loading="busy" @click="retryCreation"
+          >重试并查看结果</el-button
+        >
+        <RouterLink to="/requests">前往我的需求核对</RouterLink>
+      </div>
       <div v-if="categoriesError" class="form-notice" role="alert">
         <p>需求分类加载失败，已填写的内容不会清空。请重试加载后提交，也可先保存草稿。</p>
         <el-button :loading="categoriesLoading" @click="loadCategories">重新加载分类</el-button>
@@ -554,7 +632,11 @@ onBeforeUnmount(() => {
           </el-checkbox>
         </el-form-item>
 
-        <div v-if="operationError" class="form-notice form-notice--error" role="alert">
+        <div
+          v-if="operationError && !creationPending"
+          class="form-notice form-notice--error"
+          role="alert"
+        >
           <p>{{ operationError }}</p>
           <RouterLink v-if="editingId" :to="{ name: 'request-detail', params: { id: editingId } }">
             查看最新详情
@@ -564,9 +646,11 @@ onBeforeUnmount(() => {
           {{
             busy
               ? '正在处理，请勿关闭或离开页面…'
-              : dirty
-                ? '有未保存的修改，可先保存再继续填写。'
-                : saveFeedback
+              : creationPending
+                ? '请先核对本次创建结果，填写内容保留在本页。'
+                : dirty
+                  ? '有未保存的修改，可先保存再继续填写。'
+                  : saveFeedback
           }}
         </p>
         <div class="form-actions">
